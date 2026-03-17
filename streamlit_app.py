@@ -4,35 +4,65 @@ import plotly.graph_objects as go
 from scipy.optimize import linprog
 from fpdf import FPDF
 import datetime
+import io
+from PIL import Image
 
+# Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
 st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
 
-# --- PDF FUNKSIYASI ---
-def create_pdf(opt_x, opt_y, opt_val, obj_type):
-    pdf = FPDF()
+# --- PDF GENERATSIYASI (GRAFIK BILAN) ---
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'Otchet resheniya zadachi LP', 0, 1, 'C')
+        self.ln(5)
+
+def create_complex_pdf(opt_x, opt_y, opt_val, obj_type, constraints, fig_image):
+    pdf = PDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', size=16)
-    pdf.cell(200, 10, txt="Otchet resheniya zadachi LP", ln=True, align='C')
-    pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Tip: {obj_type}", ln=True)
-    pdf.cell(200, 10, txt=f"X = {opt_x:.2f}, Y = {opt_y:.2f}", ln=True)
-    pdf.cell(200, 10, txt=f"Resultat Z = {opt_val:.2f}", ln=True)
+    
+    # 1. Umumiy ma'lumotlar
+    pdf.cell(0, 10, f"Data: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
+    pdf.cell(0, 10, f"Tip optimizatsii: {obj_type}", ln=True)
+    pdf.ln(5)
+    
+    # 2. Tenglamalar (Constraints) [cite: 2, 3, 4]
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Ogranicheniya:", ln=True)
+    pdf.set_font("Arial", size=11)
+    for i, c in enumerate(constraints):
+        pdf.cell(0, 8, f" {i+1}) {c['a']}*x + {c['b']}*y {c['op']} {c['c']}", ln=True)
+    pdf.ln(5)
+    
+    # 3. Grafikni joylashtirish [cite: 14]
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Grafik resheniya:", ln=True)
+    # Rasmni vaqtinchalik xotiradan PDF-ga yuklash
+    img_buf = io.BytesIO()
+    fig_image.save(img_buf, format='PNG')
+    img_buf.seek(0)
+    pdf.image(img_buf, x=10, y=None, w=180)
+    pdf.ln(5)
+    
+    # 4. Natijalar 
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Finalniy rezultat:", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 8, f"Optimalnaya tochka: X* = {opt_x:.4f}, Y* = {opt_y:.4f}", ln=True)
+    pdf.cell(0, 8, f"Znachenie tselevoy funksii: Z* = {opt_val:.4f}", ln=True)
+    
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR: KIRITISH ---
+# --- SIDEBAR: MA'LUMOT KIRITISH ---
 with st.sidebar:
     st.header("🎯 Целевая функция")
-    # Nomlarni c_main1 va c_main2 ga o'zgartirdik (xatolikni oldini olish uchun)
-    col_main1, col_main2, col_t = st.columns([2, 2, 2])
-    with col_main1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1")
-    with col_main2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2")
-    with col_t: obj_type = st.selectbox("Тип", ("max", "min"), key="main_type")
-    
-    st.markdown("---")
-    st.header("🚧 Ограничения")
+    c_col1, c_col2, c_col3 = st.columns([2, 2, 2])
+    with c_col1: c1 = st.number_input("C1", value=5.3, format="%.1f")
+    with c_col2: c2 = st.number_input("C2", value=-7.1, format="%.1f")
+    with c_col3: obj_type = st.selectbox("max/min", ("max", "min"))
     
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [
@@ -45,86 +75,68 @@ with st.sidebar:
 
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
-        # Bu erda nomlar col1, col2 va h.k.
-        cl1, cl2, cl3, cl4, cl5 = st.columns([2, 2, 1.5, 2, 1])
-        with cl1: a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
-        with cl2: b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
-        with cl3: op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
-        with cl4: c_val = st.number_input(f"c{i}", value=float(cons['c']), key=f"inp_c{i}", label_visibility="collapsed")
-        with cl5: 
-            if st.button("🗑️", key=f"btn_del{i}"):
+        col1, col2, col3, col4, col5 = st.columns([2, 2, 1.5, 2, 1])
+        with col1: a = st.number_input(f"a{i}", value=float(cons['a']), key=f"a{i}", label_visibility="collapsed")
+        with col2: b = st.number_input(f"b{i}", value=float(cons['b']), key=f"b{i}", label_visibility="collapsed")
+        with col3: op = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"op{i}", label_visibility="collapsed")
+        with col4: c = st.number_input(f"c{i}", value=float(cons['c']), key=f"c{i}", label_visibility="collapsed")
+        with col5: 
+            if st.button("🗑️", key=f"del{i}"):
                 st.session_state.constraints.pop(i)
                 st.rerun()
-        new_cons.append({'a': a_val, 'b': b_val, 'op': op_val, 'c': c_val})
+        new_cons.append({'a': a, 'b': b, 'op': op, 'c': c})
     
     st.session_state.constraints = new_cons
     if st.button("+ Добавить ограничение"):
         st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
         st.rerun()
 
-    st.markdown("---")
-    solve_btn = st.button("🚀 Решить", type="primary", use_container_width=True)
+    solve = st.button("🚀 Решить", type="primary", use_container_width=True)
 
-# --- GRAFIK VA YECHIM ---
-if solve_btn:
-    # Maqsad funksiyasi koeffitsientlari (TypeError endi chiqmaydi)
-    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
-    
+# --- ASOSIY QISM ---
+if solve:
+    obj = [-c1 if obj_type == "max" else c1, -c2 if obj_type == "max" else c2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     for c in st.session_state.constraints:
         if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
         elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
         else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
     
-    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
-
-    fig = go.Figure()
-    x_range = np.linspace(-15, 15, 1000)
-
-    # Cheklovlar chiziqlari
-    for i, c in enumerate(st.session_state.constraints):
-        if abs(c['b']) > 1e-7:
-            y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+    res = linprog(obj, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
 
     if res.success:
         opt_x, opt_y = res.x
-        opt_res = c_main1 * opt_x + c_main2 * opt_y
+        opt_val = c1 * opt_x + c2 * opt_y
         
-        # 1. Maqsad funksiyasi (Uzuk-uzuk chiziq)
-        if abs(c_main2) > 1e-7:
-            y_target = (opt_res - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
-                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
-                                     line=dict(color='black', dash='dash', width=1.5)))
+        # Grafik yaratish
+        fig = go.Figure()
+        x_vals = np.linspace(-20, 20, 1000)
+        for i, c in enumerate(st.session_state.constraints):
+            if abs(c['b']) > 1e-7:
+                y_vals = (c['c'] - c['a'] * x_vals) / c['b']
+                fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=f"L{i+1}"))
 
-        # 2. Vektor VZ (Strelka)
-        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
-                           ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
-                           text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+        # Maqsad chizig'i va optimum [cite: 16, 21]
+        y_obj = (opt_val - c1 * x_vals) / c2
+        fig.add_trace(go.Scatter(x=x_vals, y=y_obj, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers', marker=dict(color='gold', size=15, symbol='star'), name="Optimum"))
 
-        # 3. Optimum nuqta (Yulduz)
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
-                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
-                                 textposition="top right",
-                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
-                                 name="Оптимум"))
-
-        # 4. Mayda setka (Grid) sozlamalari
         fig.update_layout(
-            title="График решения",
-            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-12, 12], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-18, 10], zerolinecolor='black'),
-            plot_bgcolor='white',
-            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
-            height=700
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', range=[-15, 15]),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', range=[-20, 20]),
+            plot_bgcolor='white'
         )
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Natija va PDF
-        st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
-        pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
-        st.download_button("📥 Скачать отчёт (PDF)", data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
+        # Grafikni rasmga aylantirish (PDF uchun)
+        img_bytes = fig.to_image(format="png", width=800, height=500)
+        fig_image = Image.open(io.BytesIO(img_bytes))
+        
+        # PDF generatsiya va yuklash 
+        pdf_data = create_complex_pdf(opt_x, opt_y, opt_val, obj_type, st.session_state.constraints, fig_image)
+        st.download_button("📥 Скачать полный отчёт (PDF)", data=pdf_data, file_name="lp_full_report.pdf", mime="application/pdf")
+        
+        st.success(f"Yechim: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_val:.2f} ")
     else:
-        st.error("Решение не найдено.")
+        st.error("Yechim topilmadi.")
