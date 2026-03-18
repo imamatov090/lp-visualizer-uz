@@ -6,113 +6,139 @@ from fpdf import FPDF
 import datetime
 
 # Sahifa sozlamalari
-st.set_page_config(page_title="LP Solver", layout="wide")
+st.set_page_config(page_title="LP Solver / Решатель ЛП", layout="wide")
 
-# --- PDF GENERATSIYASI (Xatosiz va barqaror) ---
-def create_safe_pdf(opt_x, opt_y, opt_val, obj_type, constraints):
+# --- TIL SOZLAMALARI ---
+if 'lang' not in st.session_state:
+    st.session_state.lang = 'RU'
+
+texts = {
+    'UZ': {
+        'title': "📊 Chiziqli dasturlash — Reshatel",
+        'obj_func': "🎯 Maqsad funksiyasi",
+        'consts': "🚧 Cheklovlar",
+        'type': "Turi",
+        'add': "+ Qo'shish",
+        'solve': "🚀 Yechish",
+        'res': "Natija",
+        'opt_p': "Optimum nuqta",
+        'download': "📥 PDF yuklash",
+        'no_res': "Yechim topilmadi."
+    },
+    'RU': {
+        'title': "📊 Линейное программирование — Решатель",
+        'obj_func': "🎯 Целевая функция",
+        'consts': "🚧 Ограничения",
+        'type': "Тип",
+        'add': "+ Добавить",
+        'solve': "🚀 Решить",
+        'res': "Результат",
+        'opt_p': "Оптимальная точка",
+        'download': "📥 Скачать отчёт (PDF)",
+        'no_res': "Решение не найдено."
+    }
+}
+
+L = texts[st.session_state.lang]
+
+# --- PDF FUNKSIYASI (Xatosiz) ---
+def create_multilang_pdf(ox, oy, oz, o_type, constraints, lang):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "LP MASALASI BO'YICHA HISOBOT", ln=True, align='C')
+    title = "OTCHET RESHENIYA" if lang == 'RU' else "YECHIM HISOBOTI"
+    pdf.cell(0, 10, title, ln=True, align='C')
     pdf.ln(10)
-    
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, f"Sana: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
-    pdf.cell(0, 10, f"Optimizatsiya turi: {obj_type}", ln=True)
+    pdf.cell(0, 10, f"X* = {ox:.4f}, Y* = {oy:.4f}, Z* = {oz:.4f}", ln=True)
     pdf.ln(5)
-    
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "Chegaraviy shartlar:", ln=True)
-    pdf.set_font("Arial", size=11)
     for i, c in enumerate(constraints):
-        pdf.cell(0, 8, f" L{i+1}: {c['a']}*x + {c['b']}*y {c['op']} {c['c']}", ln=True)
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "YAKUNIY NATIJALAR:", ln=True)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 8, f"Optimal nuqta: X* = {opt_x:.4f}, Y* = {opt_y:.4f}", ln=True)
-    pdf.cell(0, 8, f"Maqsad funksiyasi qiymati: Z* = {opt_val:.4f}", ln=True)
-    
-    # Unicode xatosini oldini olish uchun (latin-1 da ishlaydi)
+        pdf.cell(0, 8, f" L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-st.title("📊 Chiziqli dasturlash — Reshatel")
-
-# --- SIDEBAR: KIRITISH ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("🎯 Maqsad funksiyasi")
-    # TypeError'ning oldini olish uchun noyob kalitlar ishlatildi 
-    c1_in = st.number_input("C1", value=5.3, key="inp_c1")
-    c2_in = st.number_input("C2", value=-7.1, key="inp_c2")
-    type_in = st.selectbox("Turi", ("max", "min"), key="inp_type")
+    st.session_state.lang = st.radio("Language / Язык", ('RU', 'UZ'), horizontal=True)
+    st.header(L['obj_func'])
+    c1_v = st.number_input("C1 (x)", value=5.3, key="c1_main")
+    c2_v = st.number_input("C2 (y)", value=-7.1, key="c2_main")
+    obj_type = st.selectbox(L['type'], ("max", "min"), key="obj_t_main")
     
-    st.header("🚧 Cheklovlar")
+    st.header(L['consts'])
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [
             {'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0},
             {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
             {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0},
-            {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0},
+            {'a': 7.0, 'b': -2.0, 'op': '≤', '10.0': 10.0},
             {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
         ]
 
-    new_c_list = []
+    temp_list = []
     for i, con in enumerate(st.session_state.constraints):
-        col1, col2, col3, col4, col5 = st.columns([2, 2, 1.5, 2, 1])
-        with col1: a = st.number_input(f"a{i}", value=float(con['a']), key=f"key_a{i}", label_visibility="collapsed")
-        with col2: b = st.number_input(f"b{i}", value=float(con['b']), key=f"key_b{i}", label_visibility="collapsed")
-        with col3: op = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"key_o{i}", label_visibility="collapsed")
-        with col4: c = st.number_input(f"c{i}", value=float(con['c']), key=f"key_c{i}", label_visibility="collapsed")
-        with col5: 
+        r1, r2, r3, r4, r5 = st.columns([2, 2, 1.5, 2, 1])
+        with r1: a = st.number_input(f"a{i}", value=float(con['a']), key=f"a_{i}", label_visibility="collapsed")
+        with r2: b = st.number_input(f"b{i}", value=float(con['b']), key=f"b_{i}", label_visibility="collapsed")
+        with r3: op = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op'] if 'op' in con else '≤'), key=f"o_{i}", label_visibility="collapsed")
+        with r4: c = st.number_input(f"c{i}", value=float(con['c'] if 'c' in con else 10.0), key=f"c_{i}", label_visibility="collapsed")
+        with r5:
             if st.button("🗑️", key=f"del_{i}"):
                 st.session_state.constraints.pop(i)
                 st.rerun()
-        new_c_list.append({'a': a, 'b': b, 'op': op, 'c': c})
+        temp_list.append({'a': a, 'b': b, 'op': op, 'c': c})
     
-    st.session_state.constraints = new_c_list
-    if st.button("+ Qo'shish"):
+    st.session_state.constraints = temp_list
+    if st.button(L['add']):
         st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
         st.rerun()
 
-    btn_solve = st.button("🚀 Yechish", type="primary", use_container_width=True)
+    solve_clicked = st.button(L['solve'], type="primary", use_container_width=True)
 
-# --- ASOSIY QISM ---
-if btn_solve:
-    c_list = [-c1_in if type_in == "max" else c1_in, -c2_in if type_in == "max" else c2_in]
+# --- ASOSIY GRAFIK ---
+st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
+
+if solve_clicked:
+    c_sign = -1 if obj_type == "max" else 1
+    c_coeffs = [c_sign * c1_v, c_sign * c2_v]
+    
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     for c in st.session_state.constraints:
         if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
         elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
         else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
     
-    res = linprog(c_list, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
+    res = linprog(c_coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
 
     if res.success:
         ox, oy = res.x
-        oz = c1_in * ox + c2_in * oy
+        oz = c1_v * ox + c2_v * oy
         
-        # Grafik
         fig = go.Figure()
-        xr = np.linspace(-15, 15, 1000)
+        xr = np.linspace(-20, 20, 1000)
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"L{i+1}"))
-        
-        # Maqsad chizig'i va vektor
-        y_z = (oz - c1_in * xr) / c2_in
-        fig.add_trace(go.Scatter(x=xr, y=y_z, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
-        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers', marker=dict(color='gold', size=15, symbol='star'), name="Optimum"))
-        fig.add_annotation(x=ox+1.5, y=oy+1.5, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=2, arrowcolor="red")
 
-        fig.update_layout(plot_bgcolor='white', xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=2), yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=2))
+        # Maqsad chizig'i (Dashed)
+        y_z = (oz - c1_v * xr) / c2_v
+        fig.add_trace(go.Scatter(x=xr, y=y_z, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
+        
+        # Optimum va Vektor
+        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers', marker=dict(color='gold', size=15, symbol='star'), name="Optimum"))
+        fig.add_annotation(x=ox+2, y=oy+2, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=2, arrowcolor="red")
+
+        fig.update_layout(
+            plot_bgcolor='white',
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=2, range=[-15, 15]),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=2, range=[-20, 20]),
+            height=700
+        )
         st.plotly_chart(fig, use_container_width=True)
         
-        st.success(f"Natija: X={ox:.4f}, Y={oy:.4f}, Z={oz:.4f}")
+        st.success(f"### {L['res']}: X* = {ox:.4f}, Y* = {oy:.4f}, Z* = {oz:.4f}")
         
-        # PDF tayyorlash [cite: 43]
-        final_pdf = create_safe_pdf(ox, oy, oz, type_in, st.session_state.constraints)
-        st.download_button("📥 Hisobotni yuklash (PDF)", data=final_pdf, file_name="lp_report.pdf", mime="application/pdf")
+        pdf_b = create_multilang_pdf(ox, oy, oz, obj_type, st.session_state.constraints, st.session_state.lang)
+        st.download_button(L['download'], data=pdf_b, file_name="report.pdf", mime="application/pdf")
     else:
-        st.error("Yechim topilmadi.")
+        st.error(L['no_res'])
