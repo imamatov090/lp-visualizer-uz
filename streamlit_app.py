@@ -49,7 +49,7 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf.cell(200, 10, txt=f"X = {opt_x:.4f}, Y = {opt_y:.4f}, Z = {opt_val:.4f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR ---
+# --- SIDEBAR: KIRITISH ---
 with st.sidebar:
     st.session_state.lang = st.radio("Language / Язык", ('RU', 'UZ'), horizontal=True)
     L = texts[st.session_state.lang]
@@ -67,17 +67,19 @@ with st.sidebar:
         st.session_state.constraints = [
             {'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0},
             {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
-            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}
+            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0},
+            {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0},
+            {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
         ]
 
     new_c = []
     for i, con in enumerate(st.session_state.constraints):
-        # Bir qatorda joylashtirish: [a] x + [b] y [op] [c] [del]
+        # L1, L2 larni o'chirib, x va y belgilari yonma-yon qo'yildi
         col1, colx, col2, coly, col3, col4, col5 = st.columns([2, 0.5, 2, 0.5, 1.5, 2, 0.8])
         with col1: av = st.number_input(f"a{i}", value=float(con['a']), key=f"av{i}", label_visibility="collapsed")
-        with colx: st.markdown("### x")
+        with colx: st.write("x +")
         with col2: bv = st.number_input(f"b{i}", value=float(con['b']), key=f"bv{i}", label_visibility="collapsed")
-        with coly: st.markdown("### y")
+        with coly: st.write("y")
         with col3: opv = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"ov{i}", label_visibility="collapsed")
         with col4: cv = st.number_input(f"c{i}", value=float(con['c']), key=f"cv{i}", label_visibility="collapsed")
         with col5: 
@@ -93,11 +95,11 @@ with st.sidebar:
 
     solve_btn = st.button(L['solve'], type="primary", use_container_width=True)
 
-# --- ASOSIY QISM ---
+# --- GRAFIK VA YECHIM ---
 st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
 
 if solve_btn:
-    # Solver
+    # Matematik mantiq (O'zgarmagan)
     sign = -1 if o_tp == "max" else 1
     c_list = [sign * cm1, sign * cm2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -112,7 +114,6 @@ if solve_btn:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
-        # Grafik
         fig = go.Figure()
         xr = np.linspace(-20, 20, 1000)
         for i, c in enumerate(st.session_state.constraints):
@@ -120,20 +121,21 @@ if solve_btn:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"{c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
-        # Z line (Uzuk-uzuk)
+        # Z line (Uzuk-uzuk qora chiziq)
         if abs(cm2) > 1e-7:
             yz = (oz - cm1 * xr) / cm2
             fig.add_trace(go.Scatter(x=xr, y=yz, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
 
-        # Vektor VZ va Optimum
+        # Vektor VZ va Optimum (Yulduzcha)
         fig.add_annotation(x=ox+1.5, y=oy+1.5, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
         fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
 
-        fig.update_layout(xaxis=dict(showgrid=True, dtick=2, range=[-12, 12]), yaxis=dict(showgrid=True, dtick=2, range=[-15, 10]), plot_bgcolor='white', height=700)
+        fig.update_layout(xaxis=dict(showgrid=True, dtick=2, range=[-12, 12]), yaxis=dict(showgrid=True, dtick=2, range=[-18, 10]), plot_bgcolor='white', height=700)
         st.plotly_chart(fig, use_container_width=True)
         
         st.success(f"### Result: X = {ox:.4f}, Y = {oy:.4f}, Z = {oz:.4f}")
         
+        # PDF Hisobot
         pdf_file = create_pdf(ox, oy, oz, o_tp)
         st.download_button(L['download'], data=pdf_file, file_name="report.pdf", mime="application/pdf")
     else:
