@@ -93,10 +93,11 @@ with st.sidebar:
 
     solve_btn = st.button(L['solve'], type="primary", use_container_width=True)
 
-# --- ASOSIY QISM (Resheniya qismiga tegilmadi) ---
+# --- ASOSIY QISM ---
 st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
 
 if solve_btn:
+    # Grafik resheniyaga tegmadim
     sign = -1 if o_tp == "max" else 1
     c_list = [sign * cm1, sign * cm2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -118,12 +119,11 @@ if solve_btn:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"{c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
-        # Z line (Uzuk-uzuk qora chiziq)
+        # Z line va Vektorlar
         if abs(cm2) > 1e-7:
             yz = (oz - cm1 * xr) / cm2
             fig.add_trace(go.Scatter(x=xr, y=yz, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
 
-        # Vektor VZ va Optimum (Yulduzcha)
         fig.add_annotation(x=ox+1.5, y=oy+1.5, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
         fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
 
