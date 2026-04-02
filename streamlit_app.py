@@ -4,46 +4,11 @@ import plotly.graph_objects as go
 from scipy.optimize import linprog
 from fpdf import FPDF
 
-# Sahifa sozlamalari
+# Настройки страницы
 st.set_page_config(page_title="LP Solver", layout="wide")
 
-# --- TIL SOZLAMALARI ---
-if 'lang' not in st.session_state:
-    st.session_state.lang = 'RU'
-
-texts = {
-    'UZ': {
-        'title': "📊 Chiziqli dasturlash — Reshatel",
-        'obj_func': "🎯 Maqsad funksiyasi",
-        'consts': "🚧 Cheklovlar",
-        'type': "Turi",
-        'add': "+ Cheklov qo'shish",
-        'solve': "🚀 Yechish",
-        'download': "📥 Hisobotni yuklash (PDF)",
-        'no_res': "Yechim topilmadi.",
-        'corner_pts': "Угловые точки",
-        'optimum': "Оптимум",
-        'obj_val': "Целевая функция"
-    },
-    'RU': {
-        'title': "📊 Линейное программирование — Решатель",
-        'obj_func': "🎯 Целевая функция",
-        'consts': "🚧 Ограничения",
-        'type': "Тип",
-        'add': "+ Добавить ограничение",
-        'solve': "🚀 Решить",
-        'download': "📥 Скачать отчёт (PDF)",
-        'no_res': "Решение не найдено.",
-        'corner_pts': "Угловые точки",
-        'optimum': "Оптимум",
-        'obj_val': "Целевая функция"
-    }
-}
-
-L = texts[st.session_state.lang]
-
-# --- PDF FUNKSIYASI ---
-def create_pdf(opt_x, opt_y, opt_val, obj_type):
+# --- PDF ФУНКЦИЯ ---
+def create_pdf(opt_x, opt_y, opt_val):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', size=16)
@@ -55,17 +20,14 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.session_state.lang = st.radio("Language / Язык", ('RU', 'UZ'), horizontal=True)
-    L = texts[st.session_state.lang]
-    
-    st.header(L['obj_func'])
+    st.header("🎯 Целевая функция")
     c_col1, c_col2, c_col3 = st.columns([2, 2, 2])
-    with c_col1: cm1 = st.number_input("C1", value=5.3, key="mc1")
-    with c_col2: cm2 = st.number_input("C2", value=-7.1, key="mc2")
-    with c_col3: o_tp = st.selectbox(L['type'], ("max", "min"), key="mtp")
+    with c_col1: cm1 = st.number_input("C1", value=5.3)
+    with c_col2: cm2 = st.number_input("C2", value=-7.1)
+    with c_col3: o_tp = st.selectbox("Тип", ("max", "min"))
     
     st.markdown("---")
-    st.header(L['consts'])
+    st.header("🚧 Ограничения")
     
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [
@@ -76,88 +38,77 @@ with st.sidebar:
 
     new_c = []
     for i, con in enumerate(st.session_state.constraints):
-        col1, cx, col2, cy, col3, col4, col5 = st.columns([2, 0.4, 2, 0.4, 1.5, 2, 0.8])
-        with col1: av = st.number_input(f"a{i}", value=float(con['a']), key=f"av{i}", label_visibility="collapsed")
+        c1, cx, c2, cy, c3, c4, c5 = st.columns([2, 0.4, 2, 0.4, 1.5, 2, 0.8])
+        with c1: av = st.number_input(f"a{i}", value=float(con['a']), key=f"a{i}", label_visibility="collapsed")
         with cx: st.write("x")
-        with col2: bv = st.number_input(f"b{i}", value=float(con['b']), key=f"bv{i}", label_visibility="collapsed")
+        with c2: bv = st.number_input(f"b{i}", value=float(con['b']), key=f"b{i}", label_visibility="collapsed")
         with cy: st.write("y")
-        with col3: opv = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"ov{i}", label_visibility="collapsed")
-        with col4: cv = st.number_input(f"c{i}", value=float(con['c']), key=f"cv{i}", label_visibility="collapsed")
-        with col5: 
-            if st.button("🗑️", key=f"dl{i}"):
+        with c3: opv = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"o{i}", label_visibility="collapsed")
+        with c4: cv = st.number_input(f"c{i}", value=float(con['c']), key=f"c{i}", label_visibility="collapsed")
+        with c5: 
+            if st.button("🗑️", key=f"d{i}"):
                 st.session_state.constraints.pop(i)
                 st.rerun()
         new_c.append({'a': av, 'b': bv, 'op': opv, 'c': cv})
     
     st.session_state.constraints = new_c
-    if st.button(L['add']):
+    if st.button("+ Добавить ограничение"):
         st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
         st.rerun()
 
-    solve_btn = st.button(L['solve'], type="primary", use_container_width=True)
+    solve_btn = st.button("🚀 Решить", type="primary", use_container_width=True)
 
-# --- ASOSIY QISM ---
-st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
+# --- ОСНОВНАЯ ЧАСТЬ ---
+st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование</h1>", unsafe_allow_html=True)
 
 if solve_btn:
     sign = -1 if o_tp == "max" else 1
-    c_list = [sign * cm1, sign * cm2]
-    A_ub, b_ub, A_eq, b_eq = [], [], [], []
-    for c in st.session_state.constraints:
-        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
-        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
-        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
-    
-    res = linprog(c_list, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
+    res = linprog([sign * cm1, sign * cm2], 
+                  A_ub=[[c['a'], c['b']] if c['op']=='≤' else [-c['a'], -c['b']] for c in st.session_state.constraints if c['op']!='='] or None,
+                  b_ub=[c['c'] if c['op']=='≤' else -c['c'] for c in st.session_state.constraints if c['op']!='='] or None,
+                  A_eq=[[c['a'], c['b']] for c in st.session_state.constraints if c['op']=='='] or None,
+                  b_eq=[c['c'] for c in st.session_state.constraints if c['op']=='='] or None,
+                  bounds=(None, None))
 
     if res.success:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
-        # Grafik
         fig = go.Figure()
         xr = np.linspace(ox-20, ox+20, 1000)
+        
+        # Отрисовка линий ограничений
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"L{i+1}"))
 
-        fig.add_annotation(x=ox+1.2, y=oy+1.2, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
-        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1))))
+        # --- ЦЕЛЕВАЯ ПРЯМАЯ (Z-line) ---
+        if abs(cm2) > 1e-7:
+            z_line_y = (oz - cm1 * xr) / cm2
+            fig.add_trace(go.Scatter(x=xr, y=z_line_y, mode='lines', name="Целевая прямая", line=dict(color='black', dash='dash', width=3)))
+
+        # Вектор градиента VZ
+        fig.add_annotation(x=ox+1.2, y=oy+1.2, ax=ox, ay=oy, xref="x", yref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
+        
+        # Точка оптимума
+        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
 
         fig.update_layout(
             xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-8, ox+8], zerolinecolor='black'),
             yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-8, oy+8], zerolinecolor='black'),
-            plot_bgcolor='white', height=650, yaxis_scaleanchor="x"
+            plot_bgcolor='white', height=700, yaxis_scaleanchor="x"
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # --- PASTI QISM: UGLOVIE TOCHKI VA NATIJA ---
-        st.markdown("---")
-        c_left, c_right = st.columns([1.2, 1])
-
-        with c_left:
-            st.markdown(f"#### 📍 {L['corner_pts']}")
-            # Namuna uchun jadval (oxirgi optimum nuqta bilan)
-            data = {
-                "№": [1, 2, 3],
-                "X": [round(ox, 4), -0.2936, 1.5000],
-                "Y": [round(oy, 4), -1.9697, 2.1500],
-                "Z": [round(oz, 4), 12.4290, -5.3000]
-            }
-            st.table(data)
-
-        with c_right:
-            # Optimum va Seleva funksiya bloklari
-            st.markdown(f"#### 🏁 {L['optimum']}")
-            st.info(f"**X*** = `{ox:.4f}`  \n**Y*** = `{oy:.4f}`")
-            
-            st.markdown(f"#### 🎯 {L['obj_val']}")
-            st.success(f"**Z*** = `{oz:.4f}`")
-            
-            # PDF Tugmasi
-            pdf_bytes = create_pdf(ox, oy, oz, o_tp)
-            st.download_button(L['download'], data=pdf_bytes, file_name="report.pdf", mime="application/pdf", use_container_width=True)
-            
+        # Вывод данных
+        st.markdown("### 📍 Угловые точки")
+        st.table({"№": [1], "X": [round(ox,4)], "Y": [round(oy,4)], "Z": [round(oz,4)]})
+        
+        st.markdown(f"**Оптимум:** X* = {ox:.4f}, Y* = {oy:.4f}")
+        st.markdown(f"**Целевая функция (Z):** {oz:.4f}")
+        
+        pdf_bytes = create_pdf(ox, oy, oz)
+        st.download_button("📥 Скачать отчёт (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
     else:
-        st.error(L['no_res'])
+        st.error("Решение не найдено.")
