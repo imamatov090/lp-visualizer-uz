@@ -21,7 +21,8 @@ texts = {
         'solve': "🚀 Yechish",
         'download': "📥 Hisobotni yuklash (PDF)",
         'no_res': "Yechim topilmadi.",
-        'optimum': "Optimum"
+        'optimum': "Optimum",
+        'res': "Natija"
     },
     'RU': {
         'title': "📊 Линейное программирование — Решатель",
@@ -32,7 +33,8 @@ texts = {
         'solve': "🚀 Решить",
         'download': "📥 Скачать отчёт (PDF)",
         'no_res': "Решение не найдено.",
-        'optimum': "Оптимум"
+        'optimum': "Оптимум",
+        'res': "Результат"
     }
 }
 
@@ -49,19 +51,16 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf.cell(200, 10, txt=f"X = {opt_x:.4f}, Y = {opt_y:.4f}, Z = {opt_val:.4f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR: KIRITISH ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.session_state.lang = st.radio("Language / Язык", ('RU', 'UZ'), horizontal=True)
     L = texts[st.session_state.lang]
     
     st.header(L['obj_func'])
     c_col1, c_col2, c_col3 = st.columns([2, 2, 2])
-    with c_col1:
-        cm1 = st.number_input("C1", value=5.3, key="mc1")
-    with c_col2:
-        cm2 = st.number_input("C2", value=-7.1, key="mc2")
-    with c_col3:
-        o_tp = st.selectbox(L['type'], ("max", "min"), key="mtp")
+    with c_col1: cm1 = st.number_input("C1", value=5.3, key="mc1")
+    with c_col2: cm2 = st.number_input("C2", value=-7.1, key="mc2")
+    with c_col3: o_tp = st.selectbox(L['type'], ("max", "min"), key="mtp")
     
     st.markdown("---")
     st.header(L['consts'])
@@ -77,20 +76,14 @@ with st.sidebar:
 
     new_c = []
     for i, con in enumerate(st.session_state.constraints):
-        c1, cx, c2, cy, c3, c4, c5 = st.columns([2, 0.4, 2, 0.4, 1.5, 2, 0.8])
-        with c1:
-            av = st.number_input(f"a{i}", value=float(con['a']), key=f"av{i}", label_visibility="collapsed")
-        with cx:
-            st.write("x")
-        with c2:
-            bv = st.number_input(f"b{i}", value=float(con['b']), key=f"bv{i}", label_visibility="collapsed")
-        with cy:
-            st.write("y")
-        with c3:
-            opv = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"ov{i}", label_visibility="collapsed")
-        with c4:
-            cv = st.number_input(f"c{i}", value=float(con['c']), key=f"cv{i}", label_visibility="collapsed")
-        with c5:
+        col1, cx, col2, cy, col3, col4, col5 = st.columns([2, 0.4, 2, 0.4, 1.5, 2, 0.8])
+        with col1: av = st.number_input(f"a{i}", value=float(con['a']), key=f"av{i}", label_visibility="collapsed")
+        with cx: st.write("x")
+        with col2: bv = st.number_input(f"b{i}", value=float(con['b']), key=f"bv{i}", label_visibility="collapsed")
+        with cy: st.write("y")
+        with col3: opv = st.selectbox(f"o{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(con['op']), key=f"ov{i}", label_visibility="collapsed")
+        with col4: cv = st.number_input(f"c{i}", value=float(con['c']), key=f"cv{i}", label_visibility="collapsed")
+        with col5: 
             if st.button("🗑️", key=f"dl{i}"):
                 st.session_state.constraints.pop(i)
                 st.rerun()
@@ -103,10 +96,11 @@ with st.sidebar:
 
     solve_btn = st.button(L['solve'], type="primary", use_container_width=True)
 
-# --- ASOSIY QISM (GRAFIK VA HISOB-KITOB) ---
+# --- ASOSIY QISM ---
 st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
 
 if solve_btn:
+    # 1. Hisoblash (O'zgarmadi)
     sign = -1 if o_tp == "max" else 1
     c_list = [sign * cm1, sign * cm2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -121,6 +115,7 @@ if solve_btn:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
+        # 2. Grafik (Kvadrat kletka bilan)
         fig = go.Figure()
         xr = np.linspace(-30, 30, 2000)
         for i, c in enumerate(st.session_state.constraints):
@@ -135,19 +130,23 @@ if solve_btn:
         fig.add_annotation(x=ox+1, y=oy+1, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
         fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
 
-        # --- KVADRAT VA MAYDA SETKA (dtick=1) ---
         fig.update_layout(
             xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-10, ox+10], zerolinecolor='black'),
             yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-10, oy+10], zerolinecolor='black'),
-            plot_bgcolor='white', 
-            height=800,
-            yaxis_scaleanchor="x", # Bu grafikni kvadrat qiladi
+            plot_bgcolor='white', height=750, yaxis_scaleanchor="x"
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        st.success(f"### Result: X = {ox:.4f}, Y = {oy:.4f}, Z = {oz:.4f}")
+        # --- RASMDAGI PASTKI YOZUVLAR ---
+        st.markdown("---")
+        st.write(f"### {L['res']}:")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("X*", f"{ox:.4f}")
+        c2.metric("Y*", f"{oy:.4f}")
+        c3.metric("Z*", f"{oz:.4f}")
         
+        # PDF yuklash tugmasi
         pdf_file = create_pdf(ox, oy, oz, o_tp)
-        st.download_button(L['download'], data=pdf_file, file_name="report.pdf", mime="application/pdf")
+        st.download_button(L['download'], data=pdf_file, file_name="report.pdf", mime="application/pdf", use_container_width=True)
     else:
         st.error(L['no_res'])
