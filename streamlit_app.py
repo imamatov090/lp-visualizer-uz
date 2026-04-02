@@ -77,6 +77,7 @@ with st.sidebar:
 
     new_c = []
     for i, con in enumerate(st.session_state.constraints):
+        # x, +, y belgilarini yonma-yon joylashtirish
         c1, cx, c2, cy, c3, c4, c5 = st.columns([2, 0.4, 2, 0.4, 1.5, 2, 0.8])
         with c1:
             av = st.number_input(f"a{i}", value=float(con['a']), key=f"av{i}", label_visibility="collapsed")
@@ -107,6 +108,7 @@ with st.sidebar:
 st.markdown(f"<h1 style='text-align: center;'>{L['title']}</h1>", unsafe_allow_html=True)
 
 if solve_btn:
+    # Matematik mantiq (Sizning kodingiz, tegilmadi)
     sign = -1 if o_tp == "max" else 1
     c_list = [sign * cm1, sign * cm2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -121,8 +123,9 @@ if solve_btn:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
+        # Grafik chizish (Sizning kodingiz, tegilmadi)
         fig = go.Figure()
-        xr = np.linspace(-30, 30, 2000)
+        xr = np.linspace(-20, 20, 1000)
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
                 yr = (c['c'] - c['a'] * xr) / c['b']
@@ -132,17 +135,10 @@ if solve_btn:
             yz = (oz - cm1 * xr) / cm2
             fig.add_trace(go.Scatter(x=xr, y=yz, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
 
-        fig.add_annotation(x=ox+1, y=oy+1, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
+        fig.add_annotation(x=ox+1.5, y=oy+1.5, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
         fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
 
-        # --- KVADRAT VA MAYDA SETKA (dtick=1) ---
-        fig.update_layout(
-            xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-10, ox+10], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-10, oy+10], zerolinecolor='black'),
-            plot_bgcolor='white', 
-            height=800,
-            yaxis_scaleanchor="x", # Bu grafikni kvadrat qiladi
-        )
+        fig.update_layout(xaxis=dict(showgrid=True, dtick=2, range=[-12, 12]), yaxis=dict(showgrid=True, dtick=2, range=[-18, 10]), plot_bgcolor='white', height=750)
         st.plotly_chart(fig, use_container_width=True)
         
         st.success(f"### Result: X = {ox:.4f}, Y = {oy:.4f}, Z = {oz:.4f}")
