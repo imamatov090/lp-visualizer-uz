@@ -4,19 +4,8 @@ import plotly.graph_objects as go
 from scipy.optimize import linprog
 from fpdf import FPDF
 
-# Настройки страницы
+# Sahifa sozlamalari
 st.set_page_config(page_title="LP Solver", layout="wide")
-
-# --- PDF ФУНКЦИЯ ---
-def create_pdf(opt_x, opt_y, opt_val):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', size=16)
-    pdf.cell(200, 10, txt="Otchet resheniya zadachi LP", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"X = {opt_x:.4f}, Y = {opt_y:.4f}, Z = {opt_val:.4f}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -58,7 +47,7 @@ with st.sidebar:
 
     solve_btn = st.button("🚀 Решить", type="primary", use_container_width=True)
 
-# --- ОСНОВНАЯ ЧАСТЬ ---
+# --- ASOSIY QISM ---
 st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование</h1>", unsafe_allow_html=True)
 
 if solve_btn:
@@ -74,41 +63,42 @@ if solve_btn:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
+        # Grafik
         fig = go.Figure()
-        xr = np.linspace(ox-20, ox+20, 1000)
-        
-        # Отрисовка линий ограничений
+        xr = np.linspace(ox-15, ox+15, 1000)
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"L{i+1}"))
 
-        # --- ЦЕЛЕВАЯ ПРЯМАЯ (Z-line) ---
+        # Целевая прямая
         if abs(cm2) > 1e-7:
             z_line_y = (oz - cm1 * xr) / cm2
-            fig.add_trace(go.Scatter(x=xr, y=z_line_y, mode='lines', name="Целевая прямая", line=dict(color='black', dash='dash', width=3)))
+            fig.add_trace(go.Scatter(x=xr, y=z_line_y, mode='lines', name="Целевая прямая", line=dict(color='black', dash='dash')))
 
-        # Вектор градиента VZ
+        # VZ Vektori
         fig.add_annotation(x=ox+1.2, y=oy+1.2, ax=ox, ay=oy, xref="x", yref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
-        
-        # Точка оптимума
-        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
+        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers', marker=dict(color='gold', size=15, symbol='star')))
 
         fig.update_layout(
-            xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-8, ox+8], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-8, oy+8], zerolinecolor='black'),
-            plot_bgcolor='white', height=700, yaxis_scaleanchor="x"
+            xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-8, ox+8]),
+            yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-8, oy+8]),
+            plot_bgcolor='white', height=600, yaxis_scaleanchor="x"
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # Вывод данных
-        st.markdown("### 📍 Угловые точки")
+        # --- RASMDAGI SARIQ BLOK VA JADVAL ---
+        st.info("📍 **Угловые точки**")
         st.table({"№": [1], "X": [round(ox,4)], "Y": [round(oy,4)], "Z": [round(oz,4)]})
         
-        st.markdown(f"**Оптимум:** X* = {ox:.4f}, Y* = {oy:.4f}")
-        st.markdown(f"**Целевая функция (Z):** {oz:.4f}")
+        # Natijalar (Sariq fonda chiqishi uchun warning ishlatildi)
+        st.warning(f"**Оптимум:** X* = {ox:.4f}, Y* = {oy:.4f}  \n**Целевая функция (Z):** {oz:.4f}")
         
-        pdf_bytes = create_pdf(ox, oy, oz)
-        st.download_button("📥 Скачать отчёт (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
+        # PDF Tugmasi
+        pdf = FPDF()
+        pdf.add_page(); pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt=f"Result: X={ox:.2f}, Y={oy:.2f}, Z={oz:.2f}", ln=True)
+        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+        st.download_button("📥 Скачать отчёт (PDF)", data=pdf_bytes, file_name="report.pdf")
     else:
         st.error("Решение не найдено.")
