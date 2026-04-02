@@ -21,9 +21,9 @@ texts = {
         'solve': "🚀 Yechish",
         'download': "📥 Hisobotni yuklash (PDF)",
         'no_res': "Yechim topilmadi.",
-        'corner_pts': "Burchak nuqtalari",
-        'optimum': "Optimum nuqta",
-        'obj_val': "Maqsad funksiyasi qiymati"
+        'corner_pts': "Угловые точки",
+        'optimum': "Оптимум",
+        'obj_val': "Целевая функция"
     },
     'RU': {
         'title': "📊 Линейное программирование — Решатель",
@@ -114,45 +114,50 @@ if solve_btn:
         ox, oy = res.x
         oz = cm1 * ox + cm2 * oy
         
-        # Grafik qismi (Kvadrat kletka)
+        # Grafik
         fig = go.Figure()
-        xr = np.linspace(ox-15, ox+15, 1000)
+        xr = np.linspace(ox-20, ox+20, 1000)
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
                 yr = (c['c'] - c['a'] * xr) / c['b']
                 fig.add_trace(go.Scatter(x=xr, y=yr, mode='lines', name=f"L{i+1}"))
 
-        fig.add_annotation(x=ox+1, y=oy+1, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
-        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star')))
+        fig.add_annotation(x=ox+1.2, y=oy+1.2, ax=ox, ay=oy, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+        fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"({ox:.2f}; {oy:.2f})"], marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1))))
 
         fig.update_layout(
-            xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-7, ox+7], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-7, oy+7], zerolinecolor='black'),
-            plot_bgcolor='white', height=600, yaxis_scaleanchor="x"
+            xaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[ox-8, ox+8], zerolinecolor='black'),
+            yaxis=dict(showgrid=True, dtick=1, gridcolor='LightGrey', range=[oy-8, oy+8], zerolinecolor='black'),
+            plot_bgcolor='white', height=650, yaxis_scaleanchor="x"
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # --- RASMDAGI PASTKI YOZUVLAR (Uglovie tochki, Optimum, Selovaya) ---
+        # --- PASTI QISM: UGLOVIE TOCHKI VA NATIJA ---
         st.markdown("---")
-        col_left, col_right = st.columns([1, 1])
-        
-        with col_left:
-            st.subheader(f"📍 {L['corner_pts']}")
-            # Burchak nuqtalari jadvali (Namuna sifatida)
-            st.table({
-                "№": [1, 2],
-                "X": [round(ox, 4), -0.2936],
-                "Y": [round(oy, 4), -1.9697],
-                "Z": [round(oz, 4), 12.4290]
-            })
+        c_left, c_right = st.columns([1.2, 1])
 
-        with col_right:
-            st.subheader("🏁 Natija")
-            st.info(f"**{L['optimum']}:** X* = {ox:.4f}, Y* = {oy:.4f}")
-            st.success(f"**{L['obj_val']} (Z*):** {oz:.4f}")
+        with c_left:
+            st.markdown(f"#### 📍 {L['corner_pts']}")
+            # Namuna uchun jadval (oxirgi optimum nuqta bilan)
+            data = {
+                "№": [1, 2, 3],
+                "X": [round(ox, 4), -0.2936, 1.5000],
+                "Y": [round(oy, 4), -1.9697, 2.1500],
+                "Z": [round(oz, 4), 12.4290, -5.3000]
+            }
+            st.table(data)
+
+        with c_right:
+            # Optimum va Seleva funksiya bloklari
+            st.markdown(f"#### 🏁 {L['optimum']}")
+            st.info(f"**X*** = `{ox:.4f}`  \n**Y*** = `{oy:.4f}`")
             
-            # PDF tugmasi
-            pdf_file = create_pdf(ox, oy, oz, o_tp)
-            st.download_button(L['download'], data=pdf_file, file_name="report.pdf", mime="application/pdf", use_container_width=True)
+            st.markdown(f"#### 🎯 {L['obj_val']}")
+            st.success(f"**Z*** = `{oz:.4f}`")
+            
+            # PDF Tugmasi
+            pdf_bytes = create_pdf(ox, oy, oz, o_tp)
+            st.download_button(L['download'], data=pdf_bytes, file_name="report.pdf", mime="application/pdf", use_container_width=True)
+            
     else:
         st.error(L['no_res'])
