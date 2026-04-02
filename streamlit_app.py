@@ -3,24 +3,9 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.optimize import linprog
 
-# Sahifa sozlamalari
 st.set_page_config(page_title="Линейное программирование", layout="wide")
 
-# --- CSS: Dizaynni rasmga moslash ---
-st.markdown("""
-    <style>
-    .stNumberInput div div input {
-        background-color: #f0f2f6 !important;
-        border-radius: 10px !important;
-    }
-    .stSelectbox div div div {
-        background-color: #f0f2f6 !important;
-        border-radius: 10px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Sarlavha
+# --- Interfeys qismi ---
 st.write("## 📊 Линейное программирование — Решатель")
 
 if 'rows' not in st.session_state:
@@ -32,8 +17,7 @@ if 'rows' not in st.session_state:
         {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
     ]
 
-# Ikkita ustun: Chapda kiritish, o'ngda grafik
-col_in, col_gr = st.columns([1, 1])
+col_in, col_gr = st.columns([1, 1.2])
 
 with col_in:
     st.write("### Целевая функция")
@@ -65,10 +49,9 @@ with col_in:
         st.session_state.rows.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
         st.rerun()
 
+# --- Grafik qismi ---
 with col_gr:
     st.write("### График решения")
-    
-    # Hisoblash qismi
     c_sign = -1 if obj_type == "max" else 1
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     for con in st.session_state.rows:
@@ -83,48 +66,47 @@ with col_gr:
     if res.success:
         ox, oy = res.x
         oz = c1*ox + c2*oy
+        x_range = np.linspace(ox-25, ox+25, 1000)
         
-        # Grafik oralig'ini aniqlash
-        x_range = np.linspace(ox-50, ox+50, 1000)
-        
-        # Chiziqlarni chizish
+        # 1. Chegaraviy chiziqlar (L1, L2...) va afsona
         for i, con in enumerate(st.session_state.rows):
             if con['b'] != 0:
                 y_range = (con['c'] - con['a']*x_range) / con['b']
-                fig.add_trace(go.Scatter(x=x_range, y=y_range, mode='lines', name=f"{con['a']}x + {con['b']}y {con['op']} {con['c']}"))
+                # Afsonada tenglamani to'liq ko'rsatish
+                label = f"{con['a']}·x + {con['b']}·y {con['op']} {con['c']}"
+                fig.add_trace(go.Scatter(x=x_range, y=y_range, mode='lines', name=label))
 
-        # Z chizig'i (Целевая прямая)
+        # 2. Maqsadli chiziq (Целевая прямая)
         z_y = (oz - c1*x_range) / c2
-        fig.add_trace(go.Scatter(x=x_range, y=z_y, mode='lines', name="Z line", line=dict(color='black', dash='dash')))
+        fig.add_trace(go.Scatter(x=x_range, y=z_y, mode='lines', name=f"Z: {c1}x + {c2}y = {oz:.2f}", line=dict(color='black', dash='dash')))
 
-        # VZ Vektori
-        fig.add_annotation(x=ox+5, y=oy+5, ax=ox, ay=oy, xref="x", yref="y", text="∇Z", showarrow=True, arrowhead=3, arrowcolor="red")
+        # 3. VZ Vektori (Gradient)
+        fig.add_annotation(x=ox+4, y=oy+4, ax=ox, ay=oy, xref="x", yref="y", text="∇Z", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red"))
         
-        # Optimum nuqta
+        # 4. Optimum nuqta (Yulduzcha bilan)
         fig.add_trace(go.Scatter(x=[ox], y=[oy], mode='markers+text', text=[f"Optimum ({ox:.2f}; {oy:.2f})"], 
-                                 marker=dict(color='gold', size=12, symbol='star'), name="Оптимум"))
+                                 marker=dict(color='gold', size=14, symbol='star'), name="Оптимум"))
 
-    # --- SETKA VA KO'RINISH SOZLAMALARI ---
+    # --- KICHIK KVADRAT SETKA SOZLAMALARI ---
     fig.update_layout(
         xaxis=dict(
             showgrid=True, 
-            gridcolor='LightGrey', # Setka rangi
+            gridcolor='LightGrey', 
             zerolinecolor='black', 
-            range=[ox-60, ox+60],
-            dtick=20 # Setka maydasi (kletka hajmi)
+            range=[ox-20, ox+20],
+            dtick=5 # Setka kvadratlari hajmi 5 birlik (kichikroq kvadratlar)
         ),
         yaxis=dict(
             showgrid=True, 
             gridcolor='LightGrey', 
             zerolinecolor='black', 
-            range=[oy-60, oy+60],
-            dtick=20,
+            range=[oy-20, oy+20],
+            dtick=5, # Kichik kvadratli setka
             scaleanchor="x"
         ),
-        plot_bgcolor='white', # Fon oq bo'lishi shart
-        height=600,
-        margin=dict(l=0, r=0, t=0, b=0),
-        legend=dict(x=0.7, y=0.95)
+        plot_bgcolor='white',
+        height=700,
+        legend=dict(x=0.6, y=0.98, bordercolor="Black", borderwidth=1)
     )
     
     st.plotly_chart(fig, use_container_width=True)
