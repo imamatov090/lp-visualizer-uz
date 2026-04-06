@@ -8,7 +8,6 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# Sarlavhani xuddi rasmdagidek o'rtaga chiqarish
 st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
 
 # --- PDF HISOBOT YARATISH FUNKSIYASI ---
