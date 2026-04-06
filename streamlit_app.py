@@ -8,11 +8,21 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- SARLAVHA: MUTLAQ O'RTAGA JOYLASHTIRISH ---
-# Sidebar bo'shlig'ini hisobga olib, markazlashtirilgan konteyner
-empty_left, col_center, empty_right = st.columns([1, 8, 1])
-with col_center:
-    st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
+# --- SARLAVHANI BUTUN EKRAN BO'YICHA O'RTAGA JOYLASHTIRISH ---
+st.markdown("""
+    <style>
+    .absolute-center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    </style>
+    <div class="absolute-center">
+        <h1>📊 Линейное программирование — Решатель</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- PDF HISOBOT YARATISH FUNKSIYASI ---
 def create_pdf(opt_x, opt_y, opt_val, obj_type):
@@ -87,7 +97,7 @@ with st.sidebar:
     st.markdown("---")
     solve_btn = st.button("🚀 Решить", type="primary", use_container_width=True)
 
-# --- GRAFIK VA MATEMATIK YECHIM ---
+# --- NATIJA VA GRAFIK QISMI ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     
@@ -99,18 +109,22 @@ if solve_btn:
     
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
 
-    fig = go.Figure()
-    x_range = np.linspace(-20, 20, 1000)
-
-    for i, c in enumerate(st.session_state.constraints):
-        if abs(c['b']) > 1e-7:
-            y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
-
     if res.success:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
+        # 1. Hisob-kitob natijasi sarlavhadan keyin darhol chiqadi
+        st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+        
+        # 2. Grafikni yaratish
+        fig = go.Figure()
+        x_range = np.linspace(-20, 20, 1000)
+
+        for i, c in enumerate(st.session_state.constraints):
+            if abs(c['b']) > 1e-7:
+                y_vals = (c['c'] - c['a'] * x_range) / c['b']
+                fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
@@ -135,9 +149,10 @@ if solve_btn:
             height=800
         )
         
+        # 3. Grafikni chiqarish
         st.plotly_chart(fig, use_container_width=True)
-        st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
         
+        # 4. PDF yuklab olish tugmasi
         pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
         st.download_button("📥 Скачать отчёт (PDF)", data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     else:
