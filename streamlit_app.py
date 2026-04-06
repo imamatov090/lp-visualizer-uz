@@ -8,7 +8,11 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
+# --- SARLAVHA: MUTLAQ O'RTAGA JOYLASHTIRISH ---
+# Sidebar bo'shlig'ini hisobga olib, markazlashtirilgan konteyner
+empty_left, col_center, empty_right = st.columns([1, 8, 1])
+with col_center:
+    st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
 
 # --- PDF HISOBOT YARATISH FUNKSIYASI ---
 def create_pdf(opt_x, opt_y, opt_val, obj_type):
@@ -32,12 +36,10 @@ with st.sidebar:
     with col_v1:
         c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
     with col_x:
-        # *x ni ozgina balandga ko'tarish
         st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
     with col_v2:
         c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
     with col_y:
-        # *y ni ozgina balandga ko'tarish
         st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
     with col_t:
         obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
@@ -61,12 +63,10 @@ with st.sidebar:
         with cl1: 
             a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
         with cl_x:
-            # Cheklovlarda *x ni ozgina balandga ko'tarish
             st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
         with cl2: 
             b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
         with cl_y:
-            # Cheklovlarda *y ni ozgina balandga ko'tarish
             st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
         with cl3: 
             op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
