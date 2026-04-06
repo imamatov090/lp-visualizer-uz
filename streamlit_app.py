@@ -26,9 +26,14 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
 with st.sidebar:
     st.header("🎯 Целевая функция")
     col_main1, col_main2, col_t = st.columns([2, 2, 2])
-    with col_main1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1")
-    with col_main2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2")
-    with col_t: obj_type = st.selectbox("Тип", ("max", "min"), key="main_type")
+    with col_main1: 
+        # C1 yozuvi label_visibility orqali yashirildi
+        c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
+    with col_main2: 
+        # C2 yozuvi label_visibility orqali yashirildi
+        c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
+    with col_t: 
+        obj_type = st.selectbox("Тип", ("max", "min"), key="main_type")
     
     st.markdown("---")
     st.header("🚧 Ограничения")
@@ -103,27 +108,10 @@ if solve_btn:
                                  marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
                                  name="Оптимум"))
 
-        # --- SETKANI KVADRAT QILISH ---
         fig.update_layout(
             title="График решения",
-            xaxis=dict(
-                showgrid=True, 
-                gridcolor='LightGrey', 
-                gridwidth=0.5, 
-                dtick=2, 
-                range=[-15, 15], 
-                zerolinecolor='black'
-            ),
-            yaxis=dict(
-                showgrid=True, 
-                gridcolor='LightGrey', 
-                gridwidth=0.5, 
-                dtick=2, 
-                range=[-15, 15], # Masshtabni tenglashtirish uchun y-o'qi diapazoni moslandi
-                zerolinecolor='black',
-                scaleanchor="x", # Y o'qini X o'qiga bog'lash (Kvadrat shakli uchun)
-                scaleratio=1,    # Proportsiyani 1:1 qilish
-            ),
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-12, 12], zerolinecolor='black'),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-18, 10], zerolinecolor='black'),
             plot_bgcolor='white',
             legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
             height=700
