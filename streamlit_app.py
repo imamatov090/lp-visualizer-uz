@@ -8,19 +8,29 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- SARLAVHANI BUTUN EKRAN BO'YICHA O'RTAGA JOYLASHTIRISH ---
+# --- MUTLAQ O'RTAGA JOYLASHTIRILGAN SARLAVHA ---
 st.markdown("""
     <style>
-    .absolute-center {
+    .header-container {
         display: flex;
         justify-content: center;
         align-items: center;
+        gap: 15px;
         width: 100%;
+        margin-top: -30px;
         margin-bottom: 20px;
     }
+    .header-text {
+        font-family: 'Source Sans Pro', sans-serif;
+        font-weight: 700;
+        color: #31333F;
+        font-size: 32px;
+        margin: 0;
+    }
     </style>
-    <div class="absolute-center">
-        <h1>📊 Линейное программирование — Решатель</h1>
+    <div class="header-container">
+        <span style="font-size: 35px;">📊</span>
+        <h1 class="header-text">Линейное программирование — Решатель</h1>
     </div>
     """, unsafe_allow_html=True)
 
@@ -35,7 +45,7 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf.cell(200, 10, txt=f"Tip: {obj_type}", ln=True)
     pdf.cell(200, 10, txt=f"X = {opt_x:.2f}, Y = {opt_y:.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Resultat Z = {opt_val:.2f}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
 
 # --- SIDEBAR: MA'LUMOTLARNI KIRITISH ---
 with st.sidebar:
@@ -97,7 +107,7 @@ with st.sidebar:
     st.markdown("---")
     solve_btn = st.button("🚀 Решить", type="primary", use_container_width=True)
 
-# --- NATIJA VA GRAFIK QISMI ---
+# --- NATIJA VA GRAFIK ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     
@@ -113,10 +123,10 @@ if solve_btn:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # 1. Hisob-kitob natijasi sarlavhadan keyin darhol chiqadi
+        # 1. Natijani grafikdan tepaga chiqarish
         st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
         
-        # 2. Grafikni yaratish
+        # 2. Grafikni chizish
         fig = go.Figure()
         x_range = np.linspace(-20, 20, 1000)
 
@@ -145,14 +155,13 @@ if solve_btn:
             xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
             yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
             plot_bgcolor='white',
-            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
-            height=800
+            legend=dict(x=0.5, y=1.1, xanchor='center', orientation="h", bordercolor="Black", borderwidth=1),
+            height=700,
+            margin=dict(l=20, r=20, t=50, b=20)
         )
         
-        # 3. Grafikni chiqarish
         st.plotly_chart(fig, use_container_width=True)
         
-        # 4. PDF yuklab olish tugmasi
         pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
         st.download_button("📥 Скачать отчёт (PDF)", data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     else:
