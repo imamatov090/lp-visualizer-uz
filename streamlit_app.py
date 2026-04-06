@@ -3,32 +3,32 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.optimize import linprog
 from fpdf import FPDF
-import datetime
 
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
 st.markdown("<h1 style='text-align: center;'>📊 Линейное программирование — Решатель</h1>", unsafe_allow_html=True)
 
-# --- PDF FUNKSIYASI ---
+# --- PDF FUNKSIYASI (Soddalashtirilgan versiya) ---
 def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', size=16)
-    pdf.cell(200, 10, txt="Otchet resheniya zadachi LP", ln=True, align='C')
+    pdf.cell(200, 10, txt="LP Solver Report", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Tip: {obj_type}", ln=True)
-    pdf.cell(200, 10, txt=f"X = {opt_x:.2f}, Y = {opt_y:.2f}", ln=True)
-    pdf.cell(200, 10, txt=f"Resultat Z = {opt_val:.2f}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+    pdf.cell(200, 10, txt=f"Optimization type: {obj_type}", ln=True)
+    pdf.cell(200, 10, txt=f"Optimal X = {opt_x:.4f}", ln=True)
+    pdf.cell(200, 10, txt=f"Optimal Y = {opt_y:.4f}", ln=True)
+    pdf.cell(200, 10, txt=f"Result Z = {opt_val:.4f}", ln=True)
+    # latin-1 xatoligini oldini olish uchun faqat ASCII matn
+    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # --- SIDEBAR: KIRITISH ---
 with st.sidebar:
     st.header("🎯 Целевая функция")
-    # Nomlarni c_main1 va c_main2 ga o'zgartirdik (xatolikni oldini olish uchun)
     col_main1, col_main2, col_t = st.columns([2, 2, 2])
-    with col_main1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1")
-    with col_main2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2")
+    with col_main1: c_main1 = st.number_input("C1", value=5.3, format="%.2f", key="main_c1")
+    with col_main2: c_main2 = st.number_input("C2", value=-7.1, format="%.2f", key="main_c2")
     with col_t: obj_type = st.selectbox("Тип", ("max", "min"), key="main_type")
     
     st.markdown("---")
@@ -45,7 +45,6 @@ with st.sidebar:
 
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
-        # Bu erda nomlar col1, col2 va h.k.
         cl1, cl2, cl3, cl4, cl5 = st.columns([2, 2, 1.5, 2, 1])
         with cl1: a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
         with cl2: b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
@@ -67,7 +66,6 @@ with st.sidebar:
 
 # --- GRAFIK VA YECHIM ---
 if solve_btn:
-    # Maqsad funksiyasi koeffitsientlari (TypeError endi chiqmaydi)
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -79,52 +77,59 @@ if solve_btn:
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
 
     fig = go.Figure()
-    x_range = np.linspace(-15, 15, 1000)
+    # Masshtabni kengaytirdik
+    x_range = np.linspace(-50, 50, 2000)
 
-    # Cheklovlar chiziqlari
+    # Cheklovlar chiziqlari (Belgilar bilan formatlash)
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+            # Bu yerda matematik belgilar qo'shildi
+            leg_name = f"{c['a']:.2f} * x + {c['b']:.2f} * y {c['op']} {c['c']:.2f}"
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=leg_name))
 
     if res.success:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # 1. Maqsad funksiyasi (Uzuk-uzuk chiziq)
+        # Maqsad funksiyasi (Z chizig'i)
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
-                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
-                                     line=dict(color='black', dash='dash', width=1.5)))
+                                     name=f"Z line: {c_main1:.2f} * x + {c_main2:.2f} * y = {opt_res:.2f}", 
+                                     line=dict(color='black', dash='dash', width=2)))
 
-        # 2. Vektor VZ (Strelka)
-        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
+        # Vektor VZ (Gradiyent)
+        fig.add_annotation(x=opt_x + (c_main1 * 2), y=opt_y + (c_main2 * 2),
                            ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
                            text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
 
-        # 3. Optimum nuqta (Yulduz)
+        # Optimum nuqta
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
-                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 text=[f"({opt_x:.2f}; {opt_y:.2f})"], 
                                  textposition="top right",
-                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
+                                 marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1)),
                                  name="Оптимум"))
 
-        # 4. Mayda setka (Grid) sozlamalari
+        # Grafik ko'rinishini sozlash
         fig.update_layout(
-            title="График решения",
-            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-12, 12], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-18, 10], zerolinecolor='black'),
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, zerolinecolor='black'),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, zerolinecolor='black'),
             plot_bgcolor='white',
-            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
-            height=700
+            legend=dict(x=1.02, y=1, orientation="v", bordercolor="Black", borderwidth=1),
+            height=750,
+            margin=dict(l=20, r=20, t=40, b=20)
         )
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Natija va PDF
-        st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
-        pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
-        st.download_button("📥 Скачать отчёт (PDF)", data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
+        # Natijalar
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.success(f"### Результат:\nX* = {opt_x:.4f}\nY* = {opt_y:.4f}\nZ* = {opt_res:.4f}")
+        with col_res2:
+            pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
+            st.download_button("📥 Скачать отчёт (PDF)", data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     else:
-        st.error("Решение не найдено.")
+        st.error("Решение не найдено. Попробуйте изменить ограничения.")
+        st.plotly_chart(fig, use_container_width=True)
