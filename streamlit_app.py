@@ -25,15 +25,20 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
 # --- SIDEBAR: KIRITISH ---
 with st.sidebar:
     st.header("🎯 Целевая функция")
-    col_main1, col_main2, col_t = st.columns([2, 2, 2])
-    with col_main1: 
-        # C1 yozuvi label_visibility orqali yashirildi
+    
+    # C1 va C2 o'rniga *x va *y qo'shildi
+    col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
+    
+    with col_v1:
         c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
-    with col_main2: 
-        # C2 yozuvi label_visibility orqali yashirildi
+    with col_x:
+        st.markdown("### *x")
+    with col_v2:
         c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
-    with col_t: 
-        obj_type = st.selectbox("Тип", ("max", "min"), key="main_type")
+    with col_y:
+        st.markdown("### *y")
+    with col_t:
+        obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
     
     st.markdown("---")
     st.header("🚧 Ограничения")
