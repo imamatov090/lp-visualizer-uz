@@ -21,8 +21,7 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf.cell(200, 10, txt=f"Tip: {obj_type}", ln=True)
     pdf.cell(200, 10, txt=f"X = {opt_x:.2f}, Y = {opt_y:.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Resultat Z = {opt_val:.2f}", ln=True)
-    # Unicode xatoligini oldini olish uchun errors='replace'
-    return pdf.output(dest='S').encode('latin-1', errors='replace')
+    return pdf.output(dest='S').encode('latin-1')
 
 # --- SIDEBAR: MA'LUMOTLARNI KIRITISH ---
 with st.sidebar:
@@ -33,12 +32,13 @@ with st.sidebar:
     with col_v1:
         c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
     with col_x:
-        # Maqsad funksiyasida ham belgi yuqorida
-        st.markdown("<p style='margin-top: 5px; font-size: 1.2rem;'><sup>*x</sup> +</p>", unsafe_allow_html=True)
+        # *x ni ozgina balandga ko'tarish
+        st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
     with col_v2:
         c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
     with col_y:
-        st.markdown("<p style='margin-top: 5px; font-size: 1.2rem;'><sup>*y</sup></p>", unsafe_allow_html=True)
+        # *y ni ozgina balandga ko'tarish
+        st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
     with col_t:
         obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
     
@@ -56,18 +56,18 @@ with st.sidebar:
 
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
-        # Ustunlar nisbati belgilarga moslab sozlangan
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
         
         with cl1: 
             a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
         with cl_x:
-            # HTML yordamida *x belgisini plyusdan ozgina balandga ko'taramiz
-            st.markdown("<p style='margin-top: 5px; font-size: 1.1rem;'><sup>*x</sup> +</p>", unsafe_allow_html=True)
+            # Cheklovlarda *x ni ozgina balandga ko'tarish
+            st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
         with cl2: 
             b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
         with cl_y:
-            st.markdown("<p style='margin-top: 5px; font-size: 1.1rem;'><sup>*y</sup></p>", unsafe_allow_html=True)
+            # Cheklovlarda *y ni ozgina balandga ko'tarish
+            st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
         with cl3: 
             op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
         with cl4: 
@@ -114,7 +114,7 @@ if solve_btn:
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
-                                     name=f"Z line", 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
                                      line=dict(color='black', dash='dash', width=2)))
 
         fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
@@ -122,12 +122,11 @@ if solve_btn:
                            text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
 
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
-                                 text=[f"({opt_x:.2f}; {opt_y:.2f})"], 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
                                  textposition="top right",
                                  marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
                                  name="Оптимум"))
 
-        # Grafik ko'rinishi (Sarlavha olib tashlangan)
         fig.update_layout(
             xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
             yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
@@ -137,7 +136,6 @@ if solve_btn:
         )
         
         st.plotly_chart(fig, use_container_width=True)
-        
         st.success(f"### Результат: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
         
         pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
