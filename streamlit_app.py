@@ -8,7 +8,7 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- TIL MANTIQI ---
+# --- TIL MANTIQI (To'g'rilandi) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
@@ -120,17 +120,15 @@ if solve_btn:
     fig = go.Figure()
     x_range = np.linspace(-20, 20, 1000)
 
-    # --- ODRni HISOBLASH VA BO'YASH ---
+    # --- ODR VA BURCHAK NUQTALARINI HISOBLASH ---
     corner_points = []
     lines = st.session_state.constraints
-    # Barcha chiziqlar kesishgan nuqtalarini topish
     for i in range(len(lines)):
         for j in range(i + 1, len(lines)):
             try:
                 A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
                 B = np.array([lines[i]['c'], lines[j]['c']])
                 p = np.linalg.solve(A, B)
-                # Nuqta barcha cheklovlarga mosligini tekshirish
                 valid = True
                 for check in lines:
                     val = check['a']*p[0] + check['b']*p[1]
@@ -142,14 +140,15 @@ if solve_btn:
 
     if corner_points:
         pts = np.array(corner_points)
-        # Nuqtalarni soat yo'nalishi bo'yicha tartiblash (Poligon uchun)
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", 
-                                 fillcolor='rgba(0, 100, 255, 0.2)', 
-                                 line=dict(color='rgba(255,255,255,0)'), 
-                                 name="ОДР", showlegend=True))
+        # ODR sohasini bo'yash
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', 
+                                 line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalarini qo'shish (Qizil nuqtalar)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', 
+                                 marker=dict(color='red', size=8), name="Угловые точки"))
 
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
