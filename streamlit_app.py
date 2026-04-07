@@ -7,12 +7,11 @@ from fpdf import FPDF
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- TILNI ANIQLASH VA XATONI TUZATISH ---
-# O'zbek tilidagi "o'" harfi xatolik bermasligi uchun qo'sh qo'shtirnoqdan foydalanamiz
+# --- TILNI ANIQLASH (Xatoni oldini olish uchun qo'sh qo'shtirnoq ishlatildi) ---
 if "lang" not in st.session_state:
     st.session_state.lang = "Русский"
 
-# Matnlar lug'ati (Rahbaringiz so'ragan terminlar bilan)
+# Matnlar lug'ati
 if st.session_state.lang == "O'zbekcha":
     t = {
         "title": "Chiziqli dasturlash — Yechuvchi",
@@ -24,7 +23,7 @@ if st.session_state.lang == "O'zbekcha":
         "pdf": "📥 PDF hisobot",
         "analiz": "🔍 Sezgirlik tahlili",
         "opt": "Optimum",
-        "v_z": "VZ (Gradient)"
+        "vz": "VZ (Gradient)"
     }
 else:
     t = {
@@ -37,22 +36,21 @@ else:
         "pdf": "📥 Скачать отчёт (PDF)",
         "analiz": "🔍 Анализ задачи",
         "opt": "Оптимум",
-        "v_z": "VZ (Градиент)"
+        "vz": "VZ (Градиент)"
     }
 
 st.markdown(f"<h1 style='text-align: center;'>{t['title']}</h1>", unsafe_allow_html=True)
 
-# --- SIDEBAR: KIRITISH QISMI ---
+# --- SIDEBAR: MA'LUMOTLARNI KIRITISH ---
 with st.sidebar:
     st.header(t["target"])
     
-    # Maqsad funksiyasi (ixcham ko'rinishda)
-    c1_col, x_col, c2_col, y_col, type_col = st.columns([2, 1, 2, 1, 3])
-    c_main1 = c1_col.number_input("C1", value=5.3, format="%.1f", key="c1", label_visibility="collapsed")
-    x_col.markdown("<div style='margin-top:5px'>*x +</div>", unsafe_allow_html=True)
-    c_main2 = c2_col.number_input("C2", value=-7.1, format="%.1f", key="c2", label_visibility="collapsed")
-    y_col.markdown("<div style='margin-top:5px'>*y</div>", unsafe_allow_html=True)
-    obj_type = type_col.selectbox("Type", ("max", "min"), label_visibility="collapsed")
+    col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
+    c_main1 = col_v1.number_input("C1", value=5.3, format="%.1f", key="c1", label_visibility="collapsed")
+    col_x.markdown("<div style='margin-top:5px'>*x +</div>", unsafe_allow_html=True)
+    c_main2 = col_v2.number_input("C2", value=-7.1, format="%.1f", key="c2", label_visibility="collapsed")
+    col_y.markdown("<div style='margin-top:5px'>*y</div>", unsafe_allow_html=True)
+    obj_type = col_t.selectbox("Type", ("max", "min"), label_visibility="collapsed")
 
     st.markdown("---")
     st.header(t["cons"])
@@ -62,7 +60,6 @@ with st.sidebar:
 
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
-        # Rahbaringiz chizmasidagi kabi barcha elementlar bitta qatorda
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1, 2, 1, 1.5, 2, 1])
         a = cl1.number_input(f"a{i}", value=float(cons['a']), key=f"a{i}", label_visibility="collapsed")
         cl_x.markdown("<div style='margin-top:5px'>*x+</div>", unsafe_allow_html=True)
@@ -76,22 +73,17 @@ with st.sidebar:
         new_cons.append({'a': a, 'b': b, 'op': op, 'c': c})
     
     st.session_state.constraints = new_cons
-    
-    # Tugmalarni o'ngga surish
-    _, col_add = st.columns([1, 2])
-    with col_add:
-        if st.button(t["add"], use_container_width=True):
-            st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
-            st.rerun()
+    if st.button(t["add"], use_container_width=True):
+        st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
+        st.rerun()
 
     st.markdown("---")
     solve_btn = st.button(t["solve"], type="primary", use_container_width=True)
 
-    # --- TIL TANLASH (SIDEBAR PASTIDA) ---
-    st.markdown("<br>" * 5, unsafe_allow_html=True)
+    st.markdown("<br>" * 3, unsafe_allow_html=True)
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- ASOSIY MANTIQ VA GRAFIK ---
+# --- GRAFIK VA YECHIM ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -108,31 +100,32 @@ if solve_btn:
         
         st.success(f"### {t['res']}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
 
-        # Grafik yaratish
         fig = go.Figure()
-        x_vals = np.linspace(-15, 15, 400)
-        
+        x_range = np.linspace(-20, 20, 400)
+
+        # Cheklov chiziqlarini chizish
         for i, c in enumerate(st.session_state.constraints):
             if abs(c['b']) > 1e-7:
-                y_vals = (c['c'] - c['a'] * x_vals) / c['b']
-                fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=f"L{i+1}"))
-        
-        # Gradient vektori (Rahbaringiz so'ragan VZ)
-        fig.add_annotation(x=opt_x + (c_main1/5), y=opt_y + (c_main2/5), ax=opt_x, ay=opt_y,
-                           xref="x", yref="y", axref="x", ayref="y",
-                           text=t["v_z"], showarrow=True, arrowhead=3, arrowcolor="red")
+                y_vals = (c['c'] - c['a'] * x_range) / c['b']
+                fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}"))
 
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers', 
+        # Gradient vektori (Rahbaringiz so'ragan VZ)
+        fig.add_annotation(x=opt_x + (c_main1/3), y=opt_y + (c_main2/3), ax=opt_x, ay=opt_y,
+                           xref="x", yref="y", axref="x", ayref="y",
+                           text=t["vz"], showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+
+        # Optimum nuqta
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"{t['opt']} ({opt_x:.2f}, {opt_y:.2f})"],
+                                 textposition="top right",
                                  marker=dict(size=15, color='gold', symbol='star'), name=t["opt"]))
 
-        fig.update_layout(height=700, plot_bgcolor='white', xaxis=dict(zeroline=True), yaxis=dict(zeroline=True))
+        fig.update_layout(height=800, plot_bgcolor='white', xaxis=dict(zeroline=True, gridcolor='lightgrey'), yaxis=dict(zeroline=True, gridcolor='lightgrey'))
         st.plotly_chart(fig, use_container_width=True)
 
-        # Qoshimcha funksiyalar uchun tugmalar (O'ng tomonda)
-        btn_col1, btn_col2, btn_col3 = st.columns([2, 1, 1])
-        with btn_col2:
-            st.button(t["analiz"], use_container_width=True)
-        with btn_col3:
-            st.button(t["pdf"], use_container_width=True)
+        # Pastki tugmalar (O'ng tomonda)
+        c1, c2, c3 = st.columns([2, 1, 1])
+        c2.button(t["analiz"], use_container_width=True)
+        c3.button(t["pdf"], use_container_width=True)
     else:
         st.error("Yechim topilmadi.")
