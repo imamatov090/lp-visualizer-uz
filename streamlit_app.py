@@ -8,33 +8,26 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- TILNI ANIQLASH ---
+# --- TIL MANTIQI (To'g'rilandi) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
-# Matnlar lug'ati
 if st.session_state.lang == "O'zbekcha":
-    t_title = "Chiziqli dasturlash — Yechuvchi"
-    t_target = "Maqsad funksiyasi"
-    t_cons = "Cheklovlar"
-    t_type = "Turi"
+    t_title = "📊 Chiziqli dasturlash — Yechuvchi"
+    t_target = "🎯 Maqsad funksiyasi"
+    t_cons = "🚧 Cheklovlar"
     t_add = "+ Cheklov qo'shish"
     t_solve = "🚀 Hisoblash"
-    t_res = "Natija"
     t_pdf = "📥 PDF hisobotni yuklash"
-    t_err = "Yechim topilmadi."
 else:
-    t_title = "Линейное программирование — Решатель"
-    t_target = "Целевая функция"
-    t_cons = "Ограничения"
-    t_type = "Тип"
+    t_title = "📊 Линейное программирование — Решатель"
+    t_target = "🎯 Целевая функция"
+    t_cons = "🚧 Ограничения"
     t_add = "+ Добавить ограничение"
     t_solve = "🚀 Решить"
-    t_res = "Результат"
     t_pdf = "📥 Скачать отчёт (PDF)"
-    t_err = "Решение не найдено."
 
-st.markdown(f"<h1 style='text-align: center;'>📊 {t_title}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
 # --- PDF HISOBOT YARATISH FUNKSIYASI ---
 def create_pdf(opt_x, opt_y, opt_val, obj_type):
@@ -51,7 +44,7 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
 
 # --- SIDEBAR: MA'LUMOTLARNI KIRITISH ---
 with st.sidebar:
-    st.header(f"🎯 {t_target}")
+    st.header(t_target)
     
     col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
     
@@ -64,10 +57,10 @@ with st.sidebar:
     with col_y:
         st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
     with col_t:
-        obj_type = st.selectbox(t_type, ("max", "min"), key="main_type", label_visibility="collapsed")
+        obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
     
     st.markdown("---")
-    st.header(f"🚧 {t_cons}")
+    st.header(t_cons)
     
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [
@@ -109,11 +102,11 @@ with st.sidebar:
     st.markdown("---")
     solve_btn = st.button(t_solve, type="primary", use_container_width=True)
 
-    # --- TIL TANLASH TUGMALARI (ENG PASTKI QISIMDA) ---
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.session_state.lang = st.radio("🌐", ("Русский", "O'zbekcha"), horizontal=True, key="lang_selector")
+    # --- TIL TANLASH TUGMALARI (ENG PASTGA KO'CHIRILDI) ---
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA MATEMATIK YECHIM ---
+# --- GRAFIK VA MATEMATIK YECHIM (Sizning kodingiz, o'zgarishsiz) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     
@@ -140,7 +133,7 @@ if solve_btn:
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
-                                     name=f"Z={opt_res:.2f}", 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
                                      line=dict(color='black', dash='dash', width=2)))
 
         fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
@@ -148,23 +141,26 @@ if solve_btn:
                            text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
 
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
-                                 text=[f"Optimum ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
                                  textposition="top right",
                                  marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
-                                 name="Optimum"))
+                                 name="Оптимум"))
 
         fig.update_layout(
-            xaxis=dict(showgrid=True, gridcolor='LightGrey', range=[-15, 15], zerolinecolor='black'),
-            yaxis=dict(showgrid=True, gridcolor='LightGrey', range=[-15, 15], zerolinecolor='black'),
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
             plot_bgcolor='white',
-            legend=dict(x=0, y=1.1, orientation="h"),
+            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
             height=800
         )
         
         st.plotly_chart(fig, use_container_width=True)
-        st.success(f"### {t_res}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+        
+        res_text = f"Результат" if st.session_state.lang == "Русский" else "Natija"
+        st.success(f"### {res_text}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
         
         pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
         st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     else:
-        st.error(t_err)
+        err_text = "Решение не найдено." if st.session_state.lang == "Русский" else "Yechim topilmadi."
+        st.error(err_text)
