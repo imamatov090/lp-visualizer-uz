@@ -157,13 +157,13 @@ if solve_btn:
         
         # Ichki nuqtani ko'rsatish
         fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', 
-                                 marker=dict(color='blue', size=10), name="Шаг 2: Внутр. точка"))
+                                 marker=dict(color='blue', size=10), name="Внутр. точка"))
         
         # Ichki nuqtadan o'tuvchi chiziq (Level line)
         if abs(c_main2) > 1e-7:
             y_inner = (inner_z - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', 
-                                     name=f"Шаг 3: Линия уровня (Z={inner_z:.2f})", 
+                                     name=f"Линия уровня (Z={inner_z:.2f})", 
                                      line=dict(color='blue', dash='dot', width=1.5)))
 
     for i, c in enumerate(st.session_state.constraints):
