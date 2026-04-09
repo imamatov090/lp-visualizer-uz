@@ -143,12 +143,28 @@ if solve_btn:
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
+        
         # ODR sohasini bo'yash
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', 
                                  line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
         # Burchak nuqtalarini qo'shish (Qizil nuqtalar)
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', 
                                  marker=dict(color='red', size=8), name="Угловые точки"))
+
+        # --- ШАГ 2 & ШАГ 3: Внутренняя точка и линия уровня ---
+        inner_x, inner_y = center[0], center[1]
+        inner_z = c_main1 * inner_x + c_main2 * inner_y
+        
+        # Ichki nuqtani ko'rsatish
+        fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', 
+                                 marker=dict(color='blue', size=10), name="Шаг 2: Внутр. точка"))
+        
+        # Ichki nuqtadan o'tuvchi chiziq (Level line)
+        if abs(c_main2) > 1e-7:
+            y_inner = (inner_z - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', 
+                                     name=f"Шаг 3: Линия уровня (Z={inner_z:.2f})", 
+                                     line=dict(color='blue', dash='dot', width=1.5)))
 
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
