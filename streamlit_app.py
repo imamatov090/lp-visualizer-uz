@@ -35,24 +35,45 @@ else:
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
-# --- PDF HISOBOT YARATISH FUNKSIYASI (BARCHA TARIX BILAN) ---
+# --- PDF HISOBOT YARATISH FUNKSIYASI (MATEMATIK YOZUV BILAN) ---
 def create_pdf(history):
     pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', size=16)
-    pdf.cell(200, 10, txt="Otchet po resheniyam zadach LP", ln=True, align='C')
-    pdf.ln(10)
+    pdf.set_auto_page_break(auto=True, margin=15)
     
-    pdf.set_font("Arial", size=12)
     for i, item in enumerate(history):
+        pdf.add_page()
+        # Sarlavha
+        pdf.set_font("Arial", 'B', size=16)
+        pdf.cell(200, 10, txt=f"Reshenie zadachi №{len(history)-i}", ln=True, align='C')
+        pdf.set_font("Arial", size=10)
+        pdf.cell(200, 10, txt=f"Vremya: {item['time']}", ln=True, align='C')
+        pdf.ln(5)
+        
+        # 1. Maqsad funksiyasi
+        pdf.set_font("Arial", 'B', size=14)
+        pdf.cell(200, 10, txt="Selevaya funksiya:", ln=True)
+        pdf.set_font("Arial", size=12)
+        target_txt = f"F(X) = {item['c1']}x1 + ({item['c2']})x2 -> {item['type']}"
+        pdf.cell(200, 10, txt=target_txt, ln=True)
+        pdf.ln(5)
+        
+        # 2. Cheklovlar (Rasmdagi kabi matematik ko'rinishda)
+        pdf.set_font("Arial", 'B', size=14)
+        pdf.cell(200, 10, txt="Ogranicheniya:", ln=True)
+        pdf.set_font("Arial", size=12)
+        for cons in item['constraints_text']:
+            pdf.cell(200, 8, txt=f"   {cons}", ln=True)
+        # Musbatlik sharti
+        pdf.cell(200, 8, txt="   x1 >= 0, x2 >= 0", ln=True)
+        pdf.ln(10)
+        
+        # 3. Natija
+        pdf.set_font("Arial", 'B', size=14)
+        pdf.cell(200, 10, txt="Resultat:", ln=True)
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 8, txt=f"Optimalnuu tochka: X1 = {item['x']:.2f}, X2 = {item['y']:.2f}", ln=True)
         pdf.set_font("Arial", 'B', size=12)
-        pdf.cell(200, 10, txt=f"{i+1}. Vremya: {item['time']} | Tip: {item['type']}", ln=True)
-        pdf.set_font("Arial", size=11)
-        pdf.cell(200, 8, txt=f"   Optimalnuu X = {item['x']:.2f}, Y = {item['y']:.2f}", ln=True)
-        pdf.cell(200, 8, txt=f"   Resultat Z = {item['z']:.2f}", ln=True)
-        pdf.ln(2)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(3)
+        pdf.cell(200, 8, txt=f"Z* = {item['z']:.2f}", ln=True)
         
     return pdf.output(dest='S').encode('latin-1')
 
@@ -210,12 +231,12 @@ if solve_btn:
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # --- TARIXGA QO'SHISH ---
+        # --- TARIXGA QO'SHISH (Barcha matematik ma'lumotlar bilan) ---
         st.session_state.history.insert(0, {
             'time': datetime.datetime.now().strftime("%H:%M:%S"),
-            'x': opt_x,
-            'y': opt_y,
-            'z': opt_res,
+            'c1': c_main1, 'c2': c_main2,
+            'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints],
+            'x': opt_x, 'y': opt_y, 'z': opt_res,
             'type': obj_type
         })
         
@@ -229,9 +250,9 @@ if st.session_state.history:
     st.markdown("---")
     st.header(t_hist)
     
-    # PDF yuklash tugmasi (barcha tarix bilan)
+    # PDF yuklash tugmasi
     pdf_file = create_pdf(st.session_state.history)
-    st.download_button(t_pdf, data=pdf_file, file_name="lp_history_report.pdf", mime="application/pdf")
+    st.download_button(t_pdf, data=pdf_file, file_name="lp_math_report.pdf", mime="application/pdf")
     
     for h in st.session_state.history:
         st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f} ({h['type']})")
