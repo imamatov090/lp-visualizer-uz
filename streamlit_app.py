@@ -8,20 +8,28 @@ import datetime
 # Sahifa sozlamalari
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- TIL MANTIQI ---
+# --- TIL MANTIQI (To'g'rilandi) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
 if st.session_state.lang == "O'zbekcha":
-    t_title, t_target, t_cons, t_add, t_solve, t_pdf = "📊 LP Yechuvchi", "🎯 Maqsad", "🚧 Cheklovlar", "+ Qo'shish", "🚀 Hisoblash", "📥 PDF"
-    t_finish, t_gif = "✅ Tahrirlashni yakunlash", "🎞️ GIF saqlash"
+    t_title = "📊 Chiziqli dasturlash — Yechuvchi"
+    t_target = "🎯 Maqsad funksiyasi"
+    t_cons = "🚧 Cheklovlar"
+    t_add = "+ Cheklov qo'shish"
+    t_solve = "🚀 Hisoblash"
+    t_pdf = "📥 PDF hisobotni yuklash"
 else:
-    t_title, t_target, t_cons, t_add, t_solve, t_pdf = "📊 Решатель ЛП", "🎯 Цель", "🚧 Ограничения", "+ Добавить", "🚀 Решить", "📥 PDF"
-    t_finish, t_gif = "✅ Завершить редактирование", "🎞️ Сохранить GIF"
+    t_title = "📊 Линейное программирование — Решатель"
+    t_target = "🎯 Целевая функция"
+    t_cons = "🚧 Ограничения"
+    t_add = "+ Добавить ограничение"
+    t_solve = "🚀 Решить"
+    t_pdf = "📥 Скачать отчёт (PDF)"
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
-# --- PDF FUNKSIYASI ---
+# --- PDF HISOBOT YARATISH FUNKSIYASI ---
 def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf = FPDF()
     pdf.add_page()
@@ -29,52 +37,78 @@ def create_pdf(opt_x, opt_y, opt_val, obj_type):
     pdf.cell(200, 10, txt="Otchet resheniya zadachi LP", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Tip: {obj_type} | X = {opt_x:.2f}, Y = {opt_y:.2f} | Z = {opt_val:.2f}", ln=True)
+    pdf.cell(200, 10, txt=f"Tip: {obj_type}", ln=True)
+    pdf.cell(200, 10, txt=f"X = {opt_x:.2f}, Y = {opt_y:.2f}", ln=True)
+    pdf.cell(200, 10, txt=f"Resultat Z = {opt_val:.2f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR ---
-if 'locked' not in st.session_state: st.session_state.locked = False
-
+# --- SIDEBAR: MA'LUMOTLARNI KIRITISH ---
 with st.sidebar:
     st.header(t_target)
-    c1 = st.number_input("C1", value=5.3, key="main_c1", disabled=st.session_state.locked)
-    c2 = st.number_input("C2", value=-7.1, key="main_c2", disabled=st.session_state.locked)
-    obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", disabled=st.session_state.locked)
+    
+    col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
+    
+    with col_v1:
+        c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
+    with col_x:
+        st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
+    with col_v2:
+        c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
+    with col_y:
+        st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
+    with col_t:
+        obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
     
     st.markdown("---")
     st.header(t_cons)
+    
     if 'constraints' not in st.session_state:
-        st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}]
+        st.session_state.constraints = [
+            {'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0},
+            {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
+            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0},
+            {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0},
+            {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
+        ]
 
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
-        col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
-        a = col1.number_input(f"a{i}", value=float(cons['a']), key=f"a{i}", disabled=st.session_state.locked, label_visibility="collapsed")
-        b = col2.number_input(f"b{i}", value=float(cons['b']), key=f"b{i}", disabled=st.session_state.locked, label_visibility="collapsed")
-        op = col3.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"op{i}", disabled=st.session_state.locked, label_visibility="collapsed")
-        c = col4.number_input(f"c{i}", value=float(cons['c']), key=f"c{i}", disabled=st.session_state.locked, label_visibility="collapsed")
-        if col5.button("🗑️", key=f"del{i}", disabled=st.session_state.locked):
-            st.session_state.constraints.pop(i)
-            st.rerun()
-        new_cons.append({'a': a, 'b': b, 'op': op, 'c': c})
+        cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
+        
+        with cl1: 
+            a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
+        with cl_x:
+            st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
+        with cl2: 
+            b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
+        with cl_y:
+            st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
+        with cl3: 
+            op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
+        with cl4: 
+            c_val = st.number_input(f"c{i}", value=float(cons['c']), key=f"inp_c{i}", label_visibility="collapsed")
+        with cl5: 
+            if st.button("🗑️", key=f"btn_del{i}"):
+                st.session_state.constraints.pop(i)
+                st.rerun()
+        
+        new_cons.append({'a': a_val, 'b': b_val, 'op': op_val, 'c': c_val})
     
     st.session_state.constraints = new_cons
-    if st.button(t_add, disabled=st.session_state.locked):
+    if st.button(t_add):
         st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
         st.rerun()
 
     st.markdown("---")
-    if st.button(t_finish, use_container_width=True):
-        st.session_state.locked = not st.session_state.locked
-        st.rerun()
-    
     solve_btn = st.button(t_solve, type="primary", use_container_width=True)
-    st.session_state.lang = st.radio("🌐 Til", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- ASOSIY QISM (GRAFIK VA O'NG TOMONDAGI NATIJALAR) ---
-if solve_btn or st.session_state.locked:
-    # (Matematik hisob-kitoblar qismi o'zgarishsiz qoldi)
-    coeffs = [-c1 if obj_type == "max" else c1, -c2 if obj_type == "max" else c2]
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
+
+# --- GRAFIK VA MATEMATIK YECHIM ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     for c in st.session_state.constraints:
         if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
@@ -83,27 +117,79 @@ if solve_btn or st.session_state.locked:
     
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None))
 
-    # Interfeysni ikkiga bo'lish: Grafik (8 qism) va Natijalar (4 qism)
-    col_graph, col_res = st.columns([8, 3])
+    fig = go.Figure()
+    x_range = np.linspace(-20, 20, 1000)
 
-    with col_graph:
-        fig = go.Figure()
-        # (Grafik chizish kodi: ODR, burchak nuqtalar va chiziqlar)
-        # ... [Bu yerda sizning grafik kodingiz turadi] ...
-        # (Ixchamlik uchun faqat layoutni yozdim)
-        fig.update_layout(height=750, margin=dict(l=0, r=0, t=0, b=0))
+    # --- ODR VA BURCHAK NUQTALARINI HISOBLASH ---
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        # ODR sohasini bo'yash
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', 
+                                 line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalarini qo'shish (Qizil nuqtalar)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', 
+                                 marker=dict(color='red', size=8), name="Угловые точки"))
+
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
+        
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
+
+        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
+                           ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
+                           text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="top right",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
+                                 name="Оптимум"))
+
+        fig.update_layout(
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
+            plot_bgcolor='white',
+            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
+            height=800
+        )
+        
         st.plotly_chart(fig, use_container_width=True)
-
-    with col_res:
-        st.subheader("📝 " + ("Результаты" if st.session_state.lang == "Русский" else "Natijalar"))
-        if res.success:
-            st.info(f"**X:** {res.x[0]:.2f}\n\n**Y:** {res.x[1]:.2f}")
-            st.success(f"**Z:** {c1*res.x[0] + c2*res.x[1]:.2f}")
-            
-            st.markdown("---")
-            st.write("📤 **Export**")
-            pdf_file = create_pdf(res.x[0], res.x[1], c1*res.x[0] + c2*res.x[1], obj_type)
-            st.download_button(t_pdf, data=pdf_file, file_name="report.pdf", use_container_width=True)
-            st.button(t_gif, use_container_width=True) # GIF tugmasi
-        else:
-            st.error("Yechim yo'q")
+        
+        res_text = f"Результат" if st.session_state.lang == "Русский" else "Natija"
+        st.success(f"### {res_text}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+        
+        pdf_file = create_pdf(opt_x, opt_y, opt_res, obj_type)
+        st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
+    else:
+        err_text = "Решение не найдено." if st.session_state.lang == "Русский" else "Yechim topilmadi."
+        st.error(err_text)
