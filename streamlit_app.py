@@ -35,48 +35,24 @@ else:
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
-# --- PDF HISOBOT YARATISH FUNKSIYASI (MATEMATIK YOZUV BILAN) ---
+# --- PDF HISOBOT YARATISH FUNKSIYASI (BARCHA TARIX BILAN) ---
 def create_pdf(history):
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', size=16)
+    pdf.cell(200, 10, txt="Otchet po resheniyam zadach LP", ln=True, align='C')
+    pdf.ln(10)
     
+    pdf.set_font("Arial", size=12)
     for i, item in enumerate(history):
-        pdf.add_page()
-        # Sarlavha
-        pdf.set_font("Arial", 'B', size=16)
-        pdf.cell(200, 10, txt=f"Reshenie zadachi No{len(history)-i}", ln=True, align='C')
-        pdf.set_font("Arial", size=10)
-        pdf.cell(200, 10, txt=f"Vremya: {item['time']}", ln=True, align='C')
-        pdf.ln(5)
-        
-        # 1. Maqsad funksiyasi
-        pdf.set_font("Arial", 'B', size=14)
-        pdf.cell(200, 10, txt="1. Selevaya funksiya:", ln=True)
-        pdf.set_font("Arial", size=12)
-        target_txt = f"F(X) = {item['c1']}x1 + ({item['c2']})x2 -> {item['type']}"
-        pdf.cell(200, 10, txt=target_txt, ln=True)
-        pdf.ln(5)
-        
-        # 2. Cheklovlar (Unicode xatosiz formatda)
-        pdf.set_font("Arial", 'B', size=14)
-        pdf.cell(200, 10, txt="2. Ogranicheniya:", ln=True)
-        pdf.set_font("Arial", size=12)
-        for cons in item['constraints_text']:
-            # Maxsus belgilarni oddiy matnga almashtiramiz
-            safe_text = cons.replace('≤', '<=').replace('≥', '>=')
-            pdf.cell(200, 8, txt=f"   {safe_text}", ln=True)
-        
-        # Musbatlik sharti
-        pdf.cell(200, 8, txt="   x1 >= 0, x2 >= 0", ln=True)
-        pdf.ln(10)
-        
-        # 3. Natija
-        pdf.set_font("Arial", 'B', size=14)
-        pdf.cell(200, 10, txt="3. Resultat:", ln=True)
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 8, txt=f"Optimalnaya tochka: X1 = {item['x']:.2f}, X2 = {item['y']:.2f}", ln=True)
         pdf.set_font("Arial", 'B', size=12)
-        pdf.cell(200, 8, txt=f"Z* = {item['z']:.2f}", ln=True)
+        pdf.cell(200, 10, txt=f"{i+1}. Vremya: {item['time']} | Tip: {item['type']}", ln=True)
+        pdf.set_font("Arial", size=11)
+        pdf.cell(200, 8, txt=f"   Optimalnuu X = {item['x']:.2f}, Y = {item['y']:.2f}", ln=True)
+        pdf.cell(200, 8, txt=f"   Resultat Z = {item['z']:.2f}", ln=True)
+        pdf.ln(2)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
         
     return pdf.output(dest='S').encode('latin-1')
 
@@ -102,9 +78,11 @@ with st.sidebar:
     
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [
-            {'a': 3.2, 'b': -2.0, 'op': '≤', 'c': 3.0},
+            {'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0},
             {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
-            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}
+            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0},
+            {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0},
+            {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
         ]
 
     new_cons = []
@@ -180,22 +158,27 @@ if solve_btn:
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
         
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 255, 0, 0.2)', name="ОДР"))
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', 
+                                 line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', 
+                                 marker=dict(color='red', size=8), name="Угловые точки"))
 
         inner_x, inner_y = center[0], center[1]
         inner_z = c_main1 * inner_x + c_main2 * inner_y
         
-        fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', marker=dict(color='blue', size=10), name="Внутр. точка"))
+        fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', 
+                                 marker=dict(color='blue', size=10), name="Внутр. точка"))
         
         if abs(c_main2) > 1e-7:
             y_inner = (inner_z - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', line=dict(color='blue', dash='dot'), name=f"Линия уровня (Z={inner_z:.2f})"))
+            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', 
+                                     name=f"Линия уровня (Z={inner_z:.2f})", 
+                                     line=dict(color='blue', dash='dot', width=1.5)))
 
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}"))
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
     if res.success:
         opt_x, opt_y = res.x
@@ -203,22 +186,40 @@ if solve_btn:
         
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash'), name="Целевая прямая"))
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
 
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=["Optimum"], marker=dict(color='gold', size=15, symbol='star'), name="Оптимум"))
+        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5),
+                           ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
+                           text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
 
-        fig.update_layout(xaxis=dict(range=[-15, 15]), yaxis=dict(range=[-15, 15]), height=800)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="top right",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)),
+                                 name="Оптимум"))
+
+        fig.update_layout(
+            xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
+            yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'),
+            plot_bgcolor='white',
+            legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1),
+            height=800
+        )
+        
         st.plotly_chart(fig, use_container_width=True)
         
         # --- TARIXGA QO'SHISH ---
         st.session_state.history.insert(0, {
             'time': datetime.datetime.now().strftime("%H:%M:%S"),
-            'c1': c_main1, 'c2': c_main2,
-            'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints],
-            'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type
+            'x': opt_x,
+            'y': opt_y,
+            'z': opt_res,
+            'type': obj_type
         })
         
-        res_text = "Результат" if st.session_state.lang == "Русский" else "Natija"
+        res_text = f"Результат" if st.session_state.lang == "Русский" else "Natija"
         st.success(f"### {res_text}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
     else:
         st.error("Yechim topilmadi.")
@@ -227,8 +228,10 @@ if solve_btn:
 if st.session_state.history:
     st.markdown("---")
     st.header(t_hist)
+    
+    # PDF yuklash tugmasi (barcha tarix bilan)
     pdf_file = create_pdf(st.session_state.history)
-    st.download_button(t_pdf, data=pdf_file, file_name="lp_math_report.pdf", mime="application/pdf")
+    st.download_button(t_pdf, data=pdf_file, file_name="lp_history_report.pdf", mime="application/pdf")
     
     for h in st.session_state.history:
         st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f} ({h['type']})")
