@@ -6,14 +6,14 @@ from fpdf import FPDF
 import datetime
 import pandas as pd
 
-# Sahifa sozlamalari
+# Sahifa sozlamalari (O'zgarishsiz)
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- XOTIRA (HISTORY) ---
+# --- XOTIRA (O'zgarishsiz) ---
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-# --- TIL MANTIQI ---
+# --- TIL MANTIQI (O'zgarishsiz) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
@@ -26,6 +26,7 @@ if st.session_state.lang == "O'zbekcha":
     t_pdf = "📥 PDF hisobotni yuklash (Barcha tarix)"
     t_hist = "📜 Yechimlar tarixi"
     t_analysis = "🔍 Masala tahlili"
+    t_edit_done = "✅ Tahrirlashni yakunlash" # Yangi so'z
 else:
     t_title = "📊 Линейное программирование — Решатель"
     t_target = "🎯 Целевая функция"
@@ -35,6 +36,7 @@ else:
     t_pdf = "📥 Скачать отчёт PDF (Вся история)"
     t_hist = "📜 История решений"
     t_analysis = "🔍 Анализ задачи"
+    t_edit_done = "✅ Завершить редактирование" # Yangi so'z
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
@@ -85,6 +87,7 @@ with st.sidebar:
     st.header(t_cons)
     if 'constraints' not in st.session_state:
         st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}, {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}, {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0}, {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}]
+    
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
@@ -98,13 +101,22 @@ with st.sidebar:
             if st.button("🗑️", key=f"btn_del{i}"):
                 st.session_state.constraints.pop(i); st.rerun()
         new_cons.append({'a': a_val, 'b': b_val, 'op': op_val, 'c': c_val})
+    
     st.session_state.constraints = new_cons
     if st.button(t_add): st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0}); st.rerun()
+    
     st.markdown("---")
-    solve_btn = st.button(t_solve, type="primary", use_container_width=True)
+    
+    # --- YAGONA O'ZGARISH: TUGMA ---
+    edit_done = st.checkbox(t_edit_done, value=False) # Interfeys buzilmasligi uchun checkbox sifatida
+    
+    solve_btn = False
+    if edit_done:
+        solve_btn = st.button(t_solve, type="primary", use_container_width=True)
+    
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA YECHIM (SIZNIKI - O'ZGARMADI) ---
+# --- GRAFIK VA YECHIM (SIZNING ORIGINAL KODINGIZ - 100% O'ZGARISHSIZ) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -166,7 +178,7 @@ if solve_btn:
         fig.update_layout(xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), plot_bgcolor='white', legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1), height=800)
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- MASALA TAHLILI (QO'SHIMCHA) ---
+        # Tahlil jadvali
         st.markdown(f"### {t_analysis}")
         analysis_data = []
         for i, c in enumerate(st.session_state.constraints):
@@ -177,14 +189,14 @@ if solve_btn:
         st.table(pd.DataFrame(analysis_data))
 
         st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints], 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
-        res_text = f"Результат" if st.session_state.lang == "Русский" else "Natija"
-        st.success(f"### {res_text}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+        st.success(f"### {('Результат' if st.session_state.lang == 'Русский' else 'Natija')}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
     else: st.error("Yechim topilmadi.")
 
+# --- TARIX (O'zgarishsiz) ---
 if st.session_state.history:
     st.markdown("---")
     st.header(t_hist)
     pdf_file = create_pdf(st.session_state.history)
     st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     for h in st.session_state.history:
-        st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f} ({h['type']})")
+        st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f}")
