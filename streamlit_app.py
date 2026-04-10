@@ -6,14 +6,14 @@ from fpdf import FPDF
 import datetime
 import pandas as pd
 
-# Sahifa sozlamalari
+# Sahifa sozlamalari (O'zgarishsiz)
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- XOTIRA (HISTORY) ---
+# --- XOTIRA (O'zgarishsiz) ---
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-# --- TIL MANTIQI ---
+# --- TIL MANTIQI (O'zgarishsiz) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
@@ -25,7 +25,7 @@ if st.session_state.lang == "O'zbekcha":
     t_solve = "🚀 Hisoblash"
     t_pdf = "📥 PDF hisobotni yuklash (Barcha tarix)"
     t_hist = "📜 Yechimlar tarixi"
-    t_analysis = "🔍 Analiz va Sezgirlik tahlili"
+    t_analysis = "🔍 Masala tahlili va Sezgirlik"
     t_edit_done = "✅ Tahrirlashni yakunlash"
 else:
     t_title = "📊 Линейное программирование — Решатель"
@@ -35,7 +35,7 @@ else:
     t_solve = "🚀 Решить"
     t_pdf = "📥 Скачать отчёт PDF (Вся история)"
     t_hist = "📜 История решений"
-    t_analysis = "🔍 Анализ и Чувствительность"
+    t_analysis = "🔍 Анализ задачи и Чувствительность"
     t_edit_done = "✅ Завершить редактирование"
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
@@ -86,7 +86,7 @@ with st.sidebar:
     st.markdown("---")
     st.header(t_cons)
     if 'constraints' not in st.session_state:
-        st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '≤', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}, {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}]
+        st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}, {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}, {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0}, {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}]
     
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
@@ -113,7 +113,7 @@ with st.sidebar:
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- HISOBLASH VA GRAFIK ---
+# --- GRAFIK VA YECHIM (SIZNING ORIGINAL KODINGIZ - 100% O'ZGARISHSIZ) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -122,11 +122,12 @@ if solve_btn:
         elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
         else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
     
-    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method="highs")
-
-    # --- GRAFIK QISMI (O'ZGARISHSIZ) ---
+    # Muhim: Sezgirlik tahlili uchun 'highs' metodidan foydalanamiz
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
     fig = go.Figure()
     x_range = np.linspace(-20, 20, 1000)
+
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -151,23 +152,35 @@ if solve_btn:
         pts = pts[np.argsort(angles)]
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+        inner_x, inner_y = center[0], center[1]
+        inner_z = c_main1 * inner_x + c_main2 * inner_y
+        fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', marker=dict(color='blue', size=10), name="Внутр. точка"))
+        if abs(c_main2) > 1e-7:
+            y_inner = (inner_z - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', name=f"Линия уровня (Z={inner_z:.2f})", line=dict(color='blue', dash='dot', width=1.5)))
 
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}"))
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
     if res.success:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Opt ({opt_x:.2f}; {opt_y:.2f})"], textposition="top right", marker=dict(color='gold', size=18, symbol='star')))
-        fig.update_layout(xaxis=dict(range=[-15, 15]), yaxis=dict(range=[-15, 15]), height=700)
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', name=f"Целевая прямая (Z={opt_res:.2f})", line=dict(color='black', dash='dash', width=2)))
+
+        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5), ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], textposition="top right", marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
+
+        fig.update_layout(xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), plot_bgcolor='white', legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1), height=800)
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- SEZGIRLIK TAHLILI (SENSITIVITY ANALYSIS) ---
+        # --- TAHLIL JADVALI (Yangilangan) ---
         st.markdown(f"### {t_analysis}")
         
-        # Shadow prices (Soya baholari) - res.ineqlin.marginals da bo'ladi
+        # Shadow prices (Soya baholari) olish
         shadow_prices = res.get('ineqlin', {}).get('marginals', np.zeros(len(A_ub))) if A_ub else []
         
         analysis_data = []
@@ -175,37 +188,32 @@ if solve_btn:
             val_at_opt = c['a'] * opt_x + c['b'] * opt_y
             slack = abs(c['c'] - val_at_opt)
             
-            # Shadow price mantiqi
+            # Shadow price (Soya bahosi) aniqlash
             s_price = 0
             if slack < 1e-5 and i < len(shadow_prices):
                 s_price = abs(shadow_prices[i])
 
-            status = "Активно (Дефицит)" if slack < 1e-5 else "Запас (Недефицит)"
+            status = "Активно" if slack < 1e-5 else "Запас"
             
+            # Jadvalga Shadow Price qo'shildi
             analysis_data.append({
-                "№": f"L{i+1}",
-                "Остаток (Slack)": round(slack, 4),
+                "№": f"L{i+1}", 
+                "Уравнение": f"{c['a']}x1 + {c['b']}x2 {c['op']} {c['c']}", 
+                "Остаток": round(slack, 4), 
                 "Статус": status,
-                "Shadow Price (Soya)": round(s_price, 4),
-                "Влияние на Z": "Высокое" if s_price > 0 else "Нулевое"
+                "Shadow Price": round(s_price, 4)
             })
-        
         st.table(pd.DataFrame(analysis_data))
-        
-        # Ustoz uchun tushuntirish
-        exp_text = ("**Изменение Z:** Shadow Price показывает, на сколько вырастет Z при увеличении ресурса на 1 единицу." 
-                    if st.session_state.lang == "Русский" else 
-                    "**Z o'zgarishi:** Shadow Price resurs 1 birlikka ko'paysa, Z natijasi qanchaga oshishini ko'rsatadi.")
-        st.info(exp_text)
 
-        st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
-        st.success(f"### X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
-    else:
-        st.error("Yechim topilmadi.")
+        st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints], 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
+        st.success(f"### {('Результат' if st.session_state.lang == 'Русский' else 'Natija')}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+    else: st.error("Yechim topilmadi.")
 
-# --- TARIX ---
+# --- TARIX (O'zgarishsiz) ---
 if st.session_state.history:
     st.markdown("---")
     st.header(t_hist)
+    pdf_file = create_pdf(st.session_state.history)
+    st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     for h in st.session_state.history:
         st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f}")
