@@ -84,13 +84,7 @@ with st.sidebar:
     st.markdown("---")
     st.header(t_cons)
     if 'constraints' not in st.session_state:
-        st.session_state.constraints = [
-            {'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0},
-            {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
-            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0},
-            {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0},
-            {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}
-        ]
+        st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}, {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}, {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0}, {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}]
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
@@ -110,7 +104,7 @@ with st.sidebar:
     solve_btn = st.button(t_solve, type="primary", use_container_width=True)
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA YECHIM (Sizning kodingiz) ---
+# --- GRAFIK VA YECHIM (SIZNIKI - O'ZGARMADI) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -123,7 +117,6 @@ if solve_btn:
     fig = go.Figure()
     x_range = np.linspace(-20, 20, 1000)
 
-    # --- ODR VA BURCHAK NUQTALARI (Sizniki) ---
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -153,7 +146,7 @@ if solve_btn:
         fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', marker=dict(color='blue', size=10), name="Внутр. точка"))
         if abs(c_main2) > 1e-7:
             y_inner = (inner_z - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', name=f"Z={inner_z:.2f}", line=dict(color='blue', dash='dot', width=1.5)))
+            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', name=f"Линия уровня (Z={inner_z:.2f})", line=dict(color='blue', dash='dot', width=1.5)))
 
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
@@ -165,25 +158,27 @@ if solve_btn:
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', name=f"Z={opt_res:.2f}", line=dict(color='black', dash='dash', width=2)))
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', name=f"Целевая прямая (Z={opt_res:.2f})", line=dict(color='black', dash='dash', width=2)))
 
-        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5), ax=opt_x, ay=opt_y, text="VZ", showarrow=True, arrowhead=3, arrowcolor="red")
+        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5), ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], textposition="top right", marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
 
-        fig.update_layout(xaxis=dict(gridcolor='LightGrey', range=[-15, 15]), yaxis=dict(gridcolor='LightGrey', range=[-15, 15]), plot_bgcolor='white', height=800)
+        fig.update_layout(xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), plot_bgcolor='white', legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1), height=800)
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- TAHLIL QISMI (YANGI) ---
+        # --- MASALA TAHLILI (QO'SHIMCHA) ---
         st.markdown(f"### {t_analysis}")
-        analysis_list = []
+        analysis_data = []
         for i, c in enumerate(st.session_state.constraints):
-            slack_val = res.slack[i] if i < len(res.slack) else 0
-            status = "Активно" if abs(slack_val) < 1e-5 else "Запас"
-            analysis_list.append({"Линия": f"L{i+1}", "Тип": c['op'], "Ресурс": c['c'], "Остаток": round(slack_val, 4), "Статус": status})
-        st.table(pd.DataFrame(analysis_list))
+            val_at_opt = c['a'] * opt_x + c['b'] * opt_y
+            slack = abs(c['c'] - val_at_opt)
+            status = "Активно" if slack < 1e-5 else "Запас"
+            analysis_data.append({"№": f"L{i+1}", "Уравнение": f"{c['a']}x1 + {c['b']}x2 {c['op']} {c['c']}", "Остаток": round(slack, 4), "Статус": status})
+        st.table(pd.DataFrame(analysis_data))
 
         st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints], 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
-        st.success(f"### {('Результат' if st.session_state.lang == 'Русский' else 'Natija')}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+        res_text = f"Результат" if st.session_state.lang == "Русский" else "Natija"
+        st.success(f"### {res_text}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
     else: st.error("Yechim topilmadi.")
 
 if st.session_state.history:
@@ -192,4 +187,4 @@ if st.session_state.history:
     pdf_file = create_pdf(st.session_state.history)
     st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
     for h in st.session_state.history:
-        st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f}")
+        st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f} ({h['type']})")
