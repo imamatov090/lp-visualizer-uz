@@ -112,7 +112,7 @@ with st.sidebar:
         solve_btn = st.button(t_solve, type="primary", use_container_width=True)
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
-# --- GRAFIK VA YECHIM (RAQAMLAR O'Q USTIDA, STRELKALAR VA NOL BILAN) ---
+# --- GRAFIK VA YECHIM (STRELKALAR, CHIZIQCHALAR VA IZOHLAR BILAN) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -127,7 +127,7 @@ if solve_btn:
     limit = 16
     x_range = np.linspace(-limit*2, limit*2, 1000)
 
-    # ODR va burchak nuqtalar
+    # ODR hisoblash
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -150,21 +150,27 @@ if solve_btn:
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.15)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=6), showlegend=False))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.1)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
 
-    # Cheklov chiziqlari
+    # Cheklov chiziqlari va avtomatik izohlar (L1, L2...)
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            # Chiziqni chizish
             fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', line=dict(color=colors[i % len(colors)], width=2), name=f"L{i+1}"))
+            
+            # Chiziq ustiga matnli izoh qo'yish (L1, L2...)
+            label_x = -limit + 2 + i*2
+            label_y = (c['c'] - c['a'] * label_x) / c['b']
+            if -limit < label_y < limit:
+                fig.add_annotation(x=label_x, y=label_y, text=f"L{i+1}", showarrow=False, font=dict(color=colors[i % len(colors)], size=12, family="Arial Bold"), bgcolor="white")
 
     if res.success:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # Z* chizig'i
+        # Maqsad funksiyasi chizig'i
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash', width=2), name=f"Z*={opt_res:.2f}"))
@@ -176,30 +182,35 @@ if solve_btn:
             vx, vy = (c_main1/norm)*scale, (c_main2/norm)*scale
             if obj_type == "min": vx, vy = -vx, -vy
             fig.add_annotation(x=opt_x + vx, y=opt_y + vy, ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
-                               text="VZ", showarrow=True, arrowhead=3, arrowsize=1.2, arrowwidth=2.5, arrowcolor="red", font=dict(color="red", size=16))
+                               text="VZ", showarrow=True, arrowhead=3, arrowsize=1.2, arrowwidth=2.5, arrowcolor="red", font=dict(color="red", size=14))
 
         # Optimum nuqtasi
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Opt({opt_x:.2f}; {opt_y:.2f})"], 
                                  textposition="top right", marker=dict(color='gold', size=14, symbol='star', line=dict(color='black', width=1)), name="Optimum"))
 
-    # --- O'QLARNI STRELKA, RAQAM VA NOL BILAN SOZLASH ---
-    # X-o'qi strelkasi
-    fig.add_annotation(x=limit, y=0, ax=-(limit-1), ay=0, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
-    # Y-o'qi strelkasi
-    fig.add_annotation(x=0, y=limit, ax=0, ay=-(limit-1), xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
+    # --- O'QLARNI STRELKA, KICHIK CHIZIQCHALAR VA RAQAMLAR BILAN CHIZISH ---
+    # X va Y o'qlari (Strelkali)
+    fig.add_annotation(x=limit, y=0, ax=-limit, ay=0, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
+    fig.add_annotation(x=0, y=limit, ax=0, ay=-limit, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
 
-    # Nol nuqtasi (0)
-    fig.add_annotation(x=-0.5, y=-0.5, text="0", showarrow=False, font=dict(size=14, color="black", family="Arial Black"))
+    # Kichik chiziqchalar (Ticks) va raqamlarni qo'shish
+    for i in range(-limit+1, limit):
+        # X o'qi uchun chiziqchalar va sonlar
+        fig.add_shape(type="line", x0=i, y0=-0.2, x1=i, y1=0.2, line=dict(color="black", width=1))
+        if i != 0 and i % 2 == 0:
+            fig.add_annotation(x=i, y=-0.8, text=str(i), showarrow=False, font=dict(size=10, color="black"))
+        
+        # Y o'qi uchun chiziqchalar va sonlar
+        fig.add_shape(type="line", x0=-0.2, y0=i, x1=0.2, y1=i, line=dict(color="black", width=1))
+        if i != 0 and i % 2 == 0:
+            fig.add_annotation(x=-0.8, y=i, text=str(i), showarrow=False, font=dict(size=10, color="black"))
 
-    # Raqamlar (O'qlarning ustida)
-    for i in range(-limit+2, limit, 2):
-        if i == 0: continue
-        fig.add_annotation(x=i, y=-0.6, text=str(i), showarrow=False, font=dict(size=11, color="black")) # X raqamlari
-        fig.add_annotation(x=-0.7, y=i, text=str(i), showarrow=False, font=dict(size=11, color="black")) # Y raqamlari
+    # Nol (0) nuqtasi
+    fig.add_annotation(x=-0.5, y=-0.5, text="0", showarrow=False, font=dict(size=12, color="black", family="Arial Black"))
 
-    # O'q nomlari (X va Y)
-    fig.add_annotation(x=limit, y=0.8, text="X", showarrow=False, font=dict(size=16, family="Arial Black", color="black"))
-    fig.add_annotation(x=0.8, y=limit, text="Y", showarrow=False, font=dict(size=16, family="Arial Black", color="black"))
+    # O'q nomlari
+    fig.add_annotation(x=limit, y=0.8, text="X", showarrow=False, font=dict(size=16, family="Arial Black"))
+    fig.add_annotation(x=0.8, y=limit, text="Y", showarrow=False, font=dict(size=16, family="Arial Black"))
 
     fig.update_layout(
         xaxis=dict(showgrid=False, visible=False, range=[-limit, limit+1]),
@@ -208,6 +219,6 @@ if solve_btn:
         paper_bgcolor='white',
         legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
         height=800,
-        margin=dict(l=20, r=20, t=60, b=20)
+        margin=dict(l=10, r=10, t=50, b=10)
     )
     st.plotly_chart(fig, use_container_width=True)
