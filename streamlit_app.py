@@ -112,9 +112,8 @@ with st.sidebar:
         solve_btn = st.button(t_solve, type="primary", use_container_width=True)
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
-# --- GRAFIK VA YECHIM (TO'LIQ IZOHLAR BILAN) ---
+# --- GRAFIK VA YECHIM (*x+ FORMATI BILAN) ---
 if solve_btn:
-    # Ma'lumotlarni tayyorlash
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     for c in st.session_state.constraints:
@@ -128,7 +127,7 @@ if solve_btn:
     limit = 16
     x_range = np.linspace(-limit*2, limit*2, 1000)
 
-    # 1. ODR va Burchak nuqtalar
+    # 1. ODR va Nuqtalar
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -151,23 +150,19 @@ if solve_btn:
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
-        # ODR
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.15)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
-        # Угловые точки
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
-        # Внутр. точка
         fig.add_trace(go.Scatter(x=[center[0]], y=[center[1]], mode='markers', marker=dict(color='blue', size=8), name="Внутр. точка"))
 
-    # 2. L1, L2... L5 Cheklovlar (Tenglamalari bilan)
+    # 2. Cheklovlar: L1: 3.2*x+ -2.0*y ≤ 3.0 formatida
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            # Legend uchun nom (L1: 3.2x + -2.0y ≤ 3.0 formatida)
-            full_name = f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"
+            # Aynan siz aytgan *x+ va *y formati
+            full_name = f"L{i+1}: {c['a']}*x+ {c['b']}*y {c['op']} {c['c']}"
             fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', line=dict(color=colors[i % len(colors)], width=2), name=full_name))
             
-            # Grafik ustiga L1, L2... deb yozish
             lx = -limit + 3 + i*2
             ly = (c['c'] - c['a'] * lx) / c['b']
             if -limit < ly < limit:
@@ -177,22 +172,20 @@ if solve_btn:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # 3. Линия уровня (Z=...)
+        # 3. Линия уровня
         if corner_points and abs(c_main2) > 1e-7:
             z_mid = c_main1 * center[0] + c_main2 * center[1]
             y_mid = (z_mid - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_mid, mode='lines', line=dict(color='green', dash='dot', width=1.5), name=f"Линия уровня (Z={z_mid:.2f})"))
 
-        # 4. Целевая прямая (Z=...)
+        # 4. Целевая прямая
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash', width=2), name=f"Целевая прямая (Z={opt_res:.2f})"))
 
-        # 5. Оптимум
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=["Оптимум"], textposition="top right", 
                                  marker=dict(color='gold', size=14, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
 
-        # Gradient vektori VZ
         norm = np.sqrt(c_main1**2 + c_main2**2)
         if norm > 0:
             scale = 4
@@ -201,11 +194,10 @@ if solve_btn:
             fig.add_annotation(x=opt_x + vx, y=opt_y + vy, ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
                                text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
 
-    # --- O'QLAR VA KOORDINATA TIZIMI ---
+    # O'qlar va koordinatalar
     fig.add_annotation(x=limit, y=0, ax=-limit, ay=0, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowwidth=2)
     fig.add_annotation(x=0, y=limit, ax=0, ay=-limit, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowwidth=2)
 
-    # Ticks (Kichik chiziqchalar)
     for i in range(-limit+1, limit):
         fig.add_shape(type="line", x0=i, y0=-0.2, x1=i, y1=0.2, line=dict(color="black", width=1))
         fig.add_shape(type="line", x0=-0.2, y0=i, x1=0.2, y1=i, line=dict(color="black", width=1))
