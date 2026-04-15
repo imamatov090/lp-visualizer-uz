@@ -74,38 +74,49 @@ def create_pdf(history):
         pdf.cell(200, 8, txt=f"Z* = {item['z']:.2f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR (O'zgarishsiz) ---
+# --- SIDEBAR: KIRITISH QISMI ---
 with st.sidebar:
     st.header(t_target)
+    # Maqsad funksiyasi inputlarini tekislash
     col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
-    with col_v1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
-    with col_x: st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
-    with col_v2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
-    with col_y: st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
+    with col_v1: c_main1 = st.number_input("C1", value=5.3, key="main_c1", label_visibility="collapsed")
+    with col_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
+    with col_v2: c_main2 = st.number_input("C2", value=-7.1, key="main_c2", label_visibility="collapsed")
+    with col_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
     with col_t: obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
+    
     st.markdown("---")
     st.header(t_cons)
+    
     if 'constraints' not in st.session_state:
-        st.session_state.constraints = [{'a': 3.2, 'b': -2.0, 'op': '=', 'c': 3.0}, {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0}, {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}, {'a': 7.0, 'b': -2.0, 'op': '≤', 'c': 10.0}, {'a': -6.5, 'b': 3.0, 'op': '≤', 'c': 9.0}]
+        st.session_state.constraints = [
+            {'a': 3.2, 'b': -2.0, 'op': '≤', 'c': 3.0},
+            {'a': 1.6, 'b': 2.3, 'op': '≤', 'c': -5.0},
+            {'a': 3.2, 'b': -6.0, 'op': '≥', 'c': 7.0}
+        ]
     
     new_cons = []
     for i, cons in enumerate(st.session_state.constraints):
+        # Cheklovlar inputlarini tekislash
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
         with cl1: a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
-        with cl_x: st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
+        with cl_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
         with cl2: b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
-        with cl_y: st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
+        with cl_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
         with cl3: op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
         with cl4: c_val = st.number_input(f"c{i}", value=float(cons['c']), key=f"inp_c{i}", label_visibility="collapsed")
         with cl5: 
             if st.button("🗑️", key=f"btn_del{i}"):
-                st.session_state.constraints.pop(i); st.rerun()
+                st.session_state.constraints.pop(i)
+                st.rerun()
         new_cons.append({'a': a_val, 'b': b_val, 'op': op_val, 'c': c_val})
     
     st.session_state.constraints = new_cons
-    if st.button(t_add): st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0}); st.rerun()
-    st.markdown("---")
+    if st.button(t_add): 
+        st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0})
+        st.rerun()
     
+    st.markdown("---")
     edit_done = st.checkbox(t_edit_done, value=False)
     solve_btn = False
     if edit_done:
