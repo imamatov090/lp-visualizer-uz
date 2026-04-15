@@ -113,7 +113,7 @@ with st.sidebar:
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA YECHIM (SIZNING ORIGINAL KODINGIZ - 100% O'ZGARISHSIZ) ---
+# --- GRAFIK VA YECHIM (YANGILANGAN) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -122,12 +122,12 @@ if solve_btn:
         elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
         else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
     
-    # Muhim: Sezgirlik tahlili uchun 'highs' metodidan foydalanamiz
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
     
     fig = go.Figure()
     x_range = np.linspace(-20, 20, 1000)
 
+    # ODRni hisoblash (Burchak nuqtalar)
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -145,75 +145,422 @@ if solve_btn:
                 if valid: corner_points.append(p)
             except: continue
 
+    # Grafikni chizish
     if corner_points:
         pts = np.array(corner_points)
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
+        # ODR sohasi (ko'k rangda)
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalari
         fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
-        inner_x, inner_y = center[0], center[1]
-        inner_z = c_main1 * inner_x + c_main2 * inner_y
-        fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', marker=dict(color='blue', size=10), name="Внутр. точка"))
-        if abs(c_main2) > 1e-7:
-            y_inner = (inner_z - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', name=f"Линия уровня (Z={inner_z:.2f})", line=dict(color='blue', dash='dot', width=1.5)))
 
+    # Cheklov chiziqlarini chizish (L1, L2...)
+    colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown']
     for i, c in enumerate(st.session_state.constraints):
         if abs(c['b']) > 1e-7:
             y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', 
+                                     line=dict(color=colors[i % len(colors)], width=2),
+                                     name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
     if res.success:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
+        
+        # Maqsad funksiyasi chizig'i (Z*)
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', name=f"Целевая прямая (Z={opt_res:.2f})", line=dict(color='black', dash='dash', width=2)))
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
 
-        fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5), ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], textposition="top right", marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
+        # VZ (Gradient vektori) - xuddi skrinshotingizdagidek
+        # Vektor yo'nalishi maqsad funksiyasining koeffitsientlariga bog'liq
+        vector_scale = 3  # Vektor uzunligi
+        fig.add_annotation(
+            x=opt_x + (c_main1 * 0.5), y=opt_y + (c_main2 * 0.5), # Strelka uchi
+            ax=opt_x, ay=opt_y, # Boshlanish nuqtasi (Optimum)
+            xref="x", yref="y", axref="x", ayref="y",
+            text="VZ", showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2, arrowcolor="red",
+            font=dict(color="red", size=14, family="Arial Black")
+        )
 
-        fig.update_layout(xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), plot_bgcolor='white', legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1), height=800)
-        st.plotly_chart(fig, use_container_width=True)
+        # Optimum nuqtasi (Oltin yulduz)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="bottom left",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), 
+                                 name="Оптимум"))
 
-        # --- TAHLIL JADVALI (Yangilangan) ---
-        st.markdown(f"### {t_analysis}")
+    # Layout sozlamalari (Skrinshotga mos)
+    fig.update_layout(
+        xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-15, 15], zerolinecolor='black', title="X"),
+        yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-20, 20], zerolinecolor='black', title="Y"),
+        plot_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=700,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)# --- GRAFIK VA YECHIM (YANGILANGAN) ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    for c in st.session_state.constraints:
+        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
+        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
+        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
+    
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
+    fig = go.Figure()
+    x_range = np.linspace(-20, 20, 1000)
+
+    # ODRni hisoblash (Burchak nuqtalar)
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    # Grafikni chizish
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        # ODR sohasi (ko'k rangda)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalari
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+
+    # Cheklov chiziqlarini chizish (L1, L2...)
+    colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown']
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', 
+                                     line=dict(color=colors[i % len(colors)], width=2),
+                                     name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # Shadow prices (Soya baholari) olish
-        shadow_prices = res.get('ineqlin', {}).get('marginals', np.zeros(len(A_ub))) if A_ub else []
+        # Maqsad funksiyasi chizig'i (Z*)
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
+
+        # VZ (Gradient vektori) - xuddi skrinshotingizdagidek
+        # Vektor yo'nalishi maqsad funksiyasining koeffitsientlariga bog'liq
+        vector_scale = 3  # Vektor uzunligi
+        fig.add_annotation(
+            x=opt_x + (c_main1 * 0.5), y=opt_y + (c_main2 * 0.5), # Strelka uchi
+            ax=opt_x, ay=opt_y, # Boshlanish nuqtasi (Optimum)
+            xref="x", yref="y", axref="x", ayref="y",
+            text="VZ", showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2, arrowcolor="red",
+            font=dict(color="red", size=14, family="Arial Black")
+        )
+
+        # Optimum nuqtasi (Oltin yulduz)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="bottom left",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), 
+                                 name="Оптимум"))
+
+    # Layout sozlamalari (Skrinshotga mos)
+    fig.update_layout(
+        xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-15, 15], zerolinecolor='black', title="X"),
+        yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-20, 20], zerolinecolor='black', title="Y"),
+        plot_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=700,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)# --- GRAFIK VA YECHIM (YANGILANGAN) ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    for c in st.session_state.constraints:
+        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
+        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
+        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
+    
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
+    fig = go.Figure()
+    x_range = np.linspace(-20, 20, 1000)
+
+    # ODRni hisoblash (Burchak nuqtalar)
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    # Grafikni chizish
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        # ODR sohasi (ko'k rangda)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalari
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+
+    # Cheklov chiziqlarini chizish (L1, L2...)
+    colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown']
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', 
+                                     line=dict(color=colors[i % len(colors)], width=2),
+                                     name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        analysis_data = []
-        for i, c in enumerate(st.session_state.constraints):
-            val_at_opt = c['a'] * opt_x + c['b'] * opt_y
-            slack = abs(c['c'] - val_at_opt)
-            
-            # Shadow price (Soya bahosi) aniqlash
-            s_price = 0
-            if slack < 1e-5 and i < len(shadow_prices):
-                s_price = abs(shadow_prices[i])
+        # Maqsad funksiyasi chizig'i (Z*)
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
 
-            status = "Активно" if slack < 1e-5 else "Запас"
-            
-            # Jadvalga Shadow Price qo'shildi
-            analysis_data.append({
-                "№": f"L{i+1}", 
-                "Уравнение": f"{c['a']}x1 + {c['b']}x2 {c['op']} {c['c']}", 
-                "Остаток": round(slack, 4), 
-                "Статус": status,
-                "Shadow Price": round(s_price, 4)
-            })
-        st.table(pd.DataFrame(analysis_data))
+        # VZ (Gradient vektori) - xuddi skrinshotingizdagidek
+        # Vektor yo'nalishi maqsad funksiyasining koeffitsientlariga bog'liq
+        vector_scale = 3  # Vektor uzunligi
+        fig.add_annotation(
+            x=opt_x + (c_main1 * 0.5), y=opt_y + (c_main2 * 0.5), # Strelka uchi
+            ax=opt_x, ay=opt_y, # Boshlanish nuqtasi (Optimum)
+            xref="x", yref="y", axref="x", ayref="y",
+            text="VZ", showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2, arrowcolor="red",
+            font=dict(color="red", size=14, family="Arial Black")
+        )
 
-        st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints], 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
-        st.success(f"### {('Результат' if st.session_state.lang == 'Русский' else 'Natija')}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
-    else: st.error("Yechim topilmadi.")
+        # Optimum nuqtasi (Oltin yulduz)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="bottom left",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), 
+                                 name="Оптимум"))
 
-# --- TARIX (O'zgarishsiz) ---
-if st.session_state.history:
-    st.markdown("---")
-    st.header(t_hist)
-    pdf_file = create_pdf(st.session_state.history)
-    st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
-    for h in st.session_state.history:
-        st.info(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}** | X: {h['x']:.2f}, Y: {h['y']:.2f}")
+    # Layout sozlamalari (Skrinshotga mos)
+    fig.update_layout(
+        xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-15, 15], zerolinecolor='black', title="X"),
+        yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-20, 20], zerolinecolor='black', title="Y"),
+        plot_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=700,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)# --- GRAFIK VA YECHIM (YANGILANGAN) ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    for c in st.session_state.constraints:
+        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
+        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
+        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
+    
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
+    fig = go.Figure()
+    x_range = np.linspace(-20, 20, 1000)
+
+    # ODRni hisoblash (Burchak nuqtalar)
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    # Grafikni chizish
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        # ODR sohasi (ko'k rangda)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalari
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+
+    # Cheklov chiziqlarini chizish (L1, L2...)
+    colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown']
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', 
+                                     line=dict(color=colors[i % len(colors)], width=2),
+                                     name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
+        
+        # Maqsad funksiyasi chizig'i (Z*)
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
+
+        # VZ (Gradient vektori) - xuddi skrinshotingizdagidek
+        # Vektor yo'nalishi maqsad funksiyasining koeffitsientlariga bog'liq
+        vector_scale = 3  # Vektor uzunligi
+        fig.add_annotation(
+            x=opt_x + (c_main1 * 0.5), y=opt_y + (c_main2 * 0.5), # Strelka uchi
+            ax=opt_x, ay=opt_y, # Boshlanish nuqtasi (Optimum)
+            xref="x", yref="y", axref="x", ayref="y",
+            text="VZ", showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2, arrowcolor="red",
+            font=dict(color="red", size=14, family="Arial Black")
+        )
+
+        # Optimum nuqtasi (Oltin yulduz)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="bottom left",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), 
+                                 name="Оптимум"))
+
+    # Layout sozlamalari (Skrinshotga mos)
+    fig.update_layout(
+        xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-15, 15], zerolinecolor='black', title="X"),
+        yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-20, 20], zerolinecolor='black', title="Y"),
+        plot_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=700,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)# --- GRAFIK VA YECHIM (YANGILANGAN) ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    for c in st.session_state.constraints:
+        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
+        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
+        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
+    
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
+    fig = go.Figure()
+    x_range = np.linspace(-20, 20, 1000)
+
+    # ODRni hisoblash (Burchak nuqtalar)
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    # Grafikni chizish
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        # ODR sohasi (ko'k rangda)
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        # Burchak nuqtalari
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+
+    # Cheklov chiziqlarini chizish (L1, L2...)
+    colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown']
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', 
+                                     line=dict(color=colors[i % len(colors)], width=2),
+                                     name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
+        
+        # Maqsad funksiyasi chizig'i (Z*)
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', 
+                                     name=f"Целевая прямая (Z={opt_res:.2f})", 
+                                     line=dict(color='black', dash='dash', width=2)))
+
+        # VZ (Gradient vektori) - xuddi skrinshotingizdagidek
+        # Vektor yo'nalishi maqsad funksiyasining koeffitsientlariga bog'liq
+        vector_scale = 3  # Vektor uzunligi
+        fig.add_annotation(
+            x=opt_x + (c_main1 * 0.5), y=opt_y + (c_main2 * 0.5), # Strelka uchi
+            ax=opt_x, ay=opt_y, # Boshlanish nuqtasi (Optimum)
+            xref="x", yref="y", axref="x", ayref="y",
+            text="VZ", showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2, arrowcolor="red",
+            font=dict(color="red", size=14, family="Arial Black")
+        )
+
+        # Optimum nuqtasi (Oltin yulduz)
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', 
+                                 text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="bottom left",
+                                 marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), 
+                                 name="Оптимум"))
+
+    # Layout sozlamalari (Skrinshotga mos)
+    fig.update_layout(
+        xaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-15, 15], zerolinecolor='black', title="X"),
+        yaxis=dict(showgrid=True, gridcolor='LightGrey', dtick=5, range=[-20, 20], zerolinecolor='black', title="Y"),
+        plot_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=700,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    st.plotly_chart(fig, use_container_width=True)
