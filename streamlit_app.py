@@ -1,8 +1,3 @@
-Mana barcha so'rovlaringizni birlashtirgan to'liq kod. Grafik qismiga va kiritish maydonlaridagi `*x+` formatiga tegmagan holda, **"Анализ задачи и Чувствительность"** (tahlil) va **"История решений"** (tarix) bo'limlarini qo'shdim.
-
-Shuningdek, PDF funksiyasi barcha tarixni chiqaradigan qilib to'g'rilandi.
-
-```python
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
