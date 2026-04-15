@@ -112,7 +112,7 @@ with st.sidebar:
         solve_btn = st.button(t_solve, type="primary", use_container_width=True)
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
-# --- GRAFIK VA YECHIM (RAQAMLAR O'Q USTIDA - ORIGIN STYLE) ---
+# --- GRAFIK VA YECHIM (RAQAMLAR O'Q USTIDA, STRELKALAR VA NOL BILAN) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -124,7 +124,8 @@ if solve_btn:
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
     
     fig = go.Figure()
-    x_range = np.linspace(-40, 40, 1000)
+    limit = 16
+    x_range = np.linspace(-limit*2, limit*2, 1000)
 
     # ODR va burchak nuqtalar
     corner_points = []
@@ -149,8 +150,8 @@ if solve_btn:
         center = np.mean(pts, axis=0)
         angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
         pts = pts[np.argsort(angles)]
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР", showlegend=True))
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=6), name="Точки", showlegend=False))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.15)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=6), showlegend=False))
 
     # Cheklov chiziqlari
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
@@ -175,36 +176,38 @@ if solve_btn:
             vx, vy = (c_main1/norm)*scale, (c_main2/norm)*scale
             if obj_type == "min": vx, vy = -vx, -vy
             fig.add_annotation(x=opt_x + vx, y=opt_y + vy, ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
-                               text="VZ", showarrow=True, arrowhead=3, arrowsize=1.2, arrowwidth=2.5, arrowcolor="red", 
-                               font=dict(color="red", size=16, family="Arial Black"))
+                               text="VZ", showarrow=True, arrowhead=3, arrowsize=1.2, arrowwidth=2.5, arrowcolor="red", font=dict(color="red", size=16))
 
         # Optimum nuqtasi
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Opt({opt_x:.2f}; {opt_y:.2f})"], 
-                                 textposition="top right", marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1)), name="Optimum"))
+                                 textposition="top right", marker=dict(color='gold', size=14, symbol='star', line=dict(color='black', width=1)), name="Optimum"))
 
-    # --- O'QLARNI VA RAQAMLARNI MARKAZGA JOYLASHTIRISH ---
-    limit = 15
-    # X-o'qi raqamlari (markaziy chiziq ustida)
-    for i in range(-limit, limit + 1, 2):
-        if i == 0: continue
-        fig.add_annotation(x=i, y=-0.8, text=str(i), showarrow=False, font=dict(size=12, color="black"))
-    
-    # Y-o'qi raqamlari (markaziy chiziq ustida)
-    for i in range(-limit, limit + 1, 2):
-        if i == 0: continue
-        fig.add_annotation(x=-0.8, y=i, text=str(i), showarrow=False, font=dict(size=12, color="black"))
+    # --- O'QLARNI STRELKA, RAQAM VA NOL BILAN SOZLASH ---
+    # X-o'qi strelkasi
+    fig.add_annotation(x=limit, y=0, ax=-(limit-1), ay=0, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
+    # Y-o'qi strelkasi
+    fig.add_annotation(x=0, y=limit, ax=0, ay=-(limit-1), xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black")
 
-    # O'qlar nomlari
-    fig.add_annotation(x=limit, y=0.5, text="X1", showarrow=False, font=dict(size=14, family="Arial Black"))
-    fig.add_annotation(x=0.5, y=limit, text="X2", showarrow=False, font=dict(size=14, family="Arial Black"))
+    # Nol nuqtasi (0)
+    fig.add_annotation(x=-0.5, y=-0.5, text="0", showarrow=False, font=dict(size=14, color="black", family="Arial Black"))
+
+    # Raqamlar (O'qlarning ustida)
+    for i in range(-limit+2, limit, 2):
+        if i == 0: continue
+        fig.add_annotation(x=i, y=-0.6, text=str(i), showarrow=False, font=dict(size=11, color="black")) # X raqamlari
+        fig.add_annotation(x=-0.7, y=i, text=str(i), showarrow=False, font=dict(size=11, color="black")) # Y raqamlari
+
+    # O'q nomlari (X va Y)
+    fig.add_annotation(x=limit, y=0.8, text="X", showarrow=False, font=dict(size=16, family="Arial Black", color="black"))
+    fig.add_annotation(x=0.8, y=limit, text="Y", showarrow=False, font=dict(size=16, family="Arial Black", color="black"))
 
     fig.update_layout(
-        xaxis=dict(showgrid=False, zeroline=True, zerolinecolor='black', zerolinewidth=2.5, range=[-limit, limit], showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=True, zerolinecolor='black', zerolinewidth=2.5, range=[-limit, limit], showticklabels=False),
+        xaxis=dict(showgrid=False, visible=False, range=[-limit, limit+1]),
+        yaxis=dict(showgrid=False, visible=False, range=[-limit, limit+1]),
         plot_bgcolor='white',
         paper_bgcolor='white',
         legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
         height=800,
-        margin=dict(l=20, r=20, t=50, b=20)
+        margin=dict(l=20, r=20, t=60, b=20)
     )
     st.plotly_chart(fig, use_container_width=True)
