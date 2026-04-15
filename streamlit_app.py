@@ -112,7 +112,7 @@ with st.sidebar:
         solve_btn = st.button(t_solve, type="primary", use_container_width=True)
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
-# --- GRAFIK VA YECHIM (TOZA OQ FON VA SETKASIZ) ---
+# --- GRAFIK VA YECHIM (RAQAMLAR O'Q USTIDA) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -126,7 +126,7 @@ if solve_btn:
     fig = go.Figure()
     x_range = np.linspace(-40, 40, 1000)
 
-    # ODR hisoblash
+    # ODR va burchak nuqtalar (O'zgarishsiz)
     corner_points = []
     lines = st.session_state.constraints
     for i in range(len(lines)):
@@ -163,7 +163,7 @@ if solve_btn:
         opt_x, opt_y = res.x
         opt_res = c_main1 * opt_x + c_main2 * opt_y
         
-        # Maqsad funksiyasi chizig'i
+        # Z* chizig'i
         if abs(c_main2) > 1e-7:
             y_target = (opt_res - c_main1 * x_range) / c_main2
             fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash', width=2), name=f"Z*={opt_res:.2f}"))
@@ -182,28 +182,142 @@ if solve_btn:
         fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Opt({opt_x:.2f}; {opt_y:.2f})"], 
                                  textposition="top right", marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1)), name="Optimum"))
 
-    # --- SETKASIZ VA OQ FONLI LAYOUT ---
+    # --- O'QLARNI VA RAQAMLARNI SKRINSHOTDAGI KABI SOZLASH ---
     fig.update_layout(
         xaxis=dict(
-            showgrid=False,       # Setkani o'chirish
-            zeroline=True,        # Markaziy o'qni qoldirish
+            showgrid=False,           # Setkani o'chirish
+            zeroline=True,            # Asosiy o'qni qoldirish
             zerolinecolor='black',
             zerolinewidth=2,
-            range=[-20, 20],
-            showticklabels=True
+            showticklabels=True,
+            tickmode='linear',
+            dtick=2,                  # Har 2 birlikda raqam qo'yish
+            range=[-15, 15],
+            # Raqamlarni o'q chizig'iga yaqinlashtirish:
+            ticks="inside",           
+            tickcolor='black'
         ),
         yaxis=dict(
-            showgrid=False,       # Setkani o'chirish
-            zeroline=True,        # Markaziy o'qni qoldirish
+            showgrid=False,           # Setkani o'chirish
+            zeroline=True,            # Asosiy o'qni qoldirish
             zerolinecolor='black',
             zerolinewidth=2,
-            range=[-20, 20],
-            showticklabels=True
+            showticklabels=True,
+            tickmode='linear',
+            dtick=2,                  # Har 2 birlikda raqam qo'yish
+            range=[-15, 15],
+            # Raqamlarni o'q chizig'iga yaqinlashtirish:
+            ticks="inside",
+            tickcolor='black'
         ),
-        plot_bgcolor='white',     # Orqa fon oq
+        plot_bgcolor='white',         # Orqa fon oq
         paper_bgcolor='white',
         legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
         height=750,
-        margin=dict(l=10, r=10, t=50, b=10)
+        margin=dict(l=40, r=40, t=50, b=40)
+    )
+    st.plotly_chart(fig, use_container_width=True)# --- GRAFIK VA YECHIM (RAQAMLAR O'Q USTIDA) ---
+if solve_btn:
+    coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
+    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    for c in st.session_state.constraints:
+        if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
+        elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
+        else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
+    
+    res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
+    
+    fig = go.Figure()
+    x_range = np.linspace(-40, 40, 1000)
+
+    # ODR va burchak nuqtalar (O'zgarishsiz)
+    corner_points = []
+    lines = st.session_state.constraints
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            try:
+                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                B = np.array([lines[i]['c'], lines[j]['c']])
+                p = np.linalg.solve(A, B)
+                valid = True
+                for check in lines:
+                    val = check['a']*p[0] + check['b']*p[1]
+                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                if valid: corner_points.append(p)
+            except: continue
+
+    if corner_points:
+        pts = np.array(corner_points)
+        center = np.mean(pts, axis=0)
+        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+        pts = pts[np.argsort(angles)]
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=6), name="Точки"))
+
+    # Cheklov chiziqlari
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+    for i, c in enumerate(st.session_state.constraints):
+        if abs(c['b']) > 1e-7:
+            y_vals = (c['c'] - c['a'] * x_range) / c['b']
+            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', line=dict(color=colors[i % len(colors)], width=2), name=f"L{i+1}"))
+
+    if res.success:
+        opt_x, opt_y = res.x
+        opt_res = c_main1 * opt_x + c_main2 * opt_y
+        
+        # Z* chizig'i
+        if abs(c_main2) > 1e-7:
+            y_target = (opt_res - c_main1 * x_range) / c_main2
+            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash', width=2), name=f"Z*={opt_res:.2f}"))
+
+        # VZ Gradient vektori
+        norm = np.sqrt(c_main1**2 + c_main2**2)
+        if norm > 0:
+            scale = 5
+            vx, vy = (c_main1/norm)*scale, (c_main2/norm)*scale
+            if obj_type == "min": vx, vy = -vx, -vy
+            fig.add_annotation(x=opt_x + vx, y=opt_y + vy, ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y",
+                               text="VZ", showarrow=True, arrowhead=3, arrowsize=1.2, arrowwidth=2.5, arrowcolor="red", 
+                               font=dict(color="red", size=16, family="Arial Black"))
+
+        # Optimum nuqtasi
+        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Opt({opt_x:.2f}; {opt_y:.2f})"], 
+                                 textposition="top right", marker=dict(color='gold', size=15, symbol='star', line=dict(color='black', width=1)), name="Optimum"))
+
+    # --- O'QLARNI VA RAQAMLARNI SKRINSHOTDAGI KABI SOZLASH ---
+    fig.update_layout(
+        xaxis=dict(
+            showgrid=False,           # Setkani o'chirish
+            zeroline=True,            # Asosiy o'qni qoldirish
+            zerolinecolor='black',
+            zerolinewidth=2,
+            showticklabels=True,
+            tickmode='linear',
+            dtick=2,                  # Har 2 birlikda raqam qo'yish
+            range=[-15, 15],
+            # Raqamlarni o'q chizig'iga yaqinlashtirish:
+            ticks="inside",           
+            tickcolor='black'
+        ),
+        yaxis=dict(
+            showgrid=False,           # Setkani o'chirish
+            zeroline=True,            # Asosiy o'qni qoldirish
+            zerolinecolor='black',
+            zerolinewidth=2,
+            showticklabels=True,
+            tickmode='linear',
+            dtick=2,                  # Har 2 birlikda raqam qo'yish
+            range=[-15, 15],
+            # Raqamlarni o'q chizig'iga yaqinlashtirish:
+            ticks="inside",
+            tickcolor='black'
+        ),
+        plot_bgcolor='white',         # Orqa fon oq
+        paper_bgcolor='white',
+        legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
+        height=750,
+        margin=dict(l=40, r=40, t=50, b=40)
     )
     st.plotly_chart(fig, use_container_width=True)
