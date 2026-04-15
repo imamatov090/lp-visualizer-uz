@@ -74,12 +74,11 @@ def create_pdf(history):
         pdf.cell(200, 8, txt=f"Z* = {item['z']:.2f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR (TEKISLANGAN QISM) ---
+# --- SIDEBAR (O'zgarishsiz) ---
 with st.sidebar:
     st.header(t_target)
     col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
     with col_v1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
-    # padding-top orqali tekislandi
     with col_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
     with col_v2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
     with col_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
@@ -94,7 +93,6 @@ with st.sidebar:
     for i, cons in enumerate(st.session_state.constraints):
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
         with cl1: a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
-        # padding-top orqali tekislandi
         with cl_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
         with cl2: b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
         with cl_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
@@ -116,7 +114,7 @@ with st.sidebar:
     
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA YECHIM (O'ZGARISHSIZ QOLDI) ---
+# --- GRAFIK VA YECHIM (SIZ YUBORGAN ORIGINAL KOD) ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
@@ -214,4 +212,50 @@ if solve_btn:
         legend=dict(x=0.5, y=1.1, orientation="h", xanchor="center", bordercolor="Black", borderwidth=1),
         height=850, margin=dict(l=10, r=10, t=50, b=10)
     )
+    
+    # 1. Grafikni chiqarish
     st.plotly_chart(fig, use_container_width=True)
+
+    # --- YANGI QISMLAR GRAFIKDAN KEYIN ---
+    st.markdown("---")
+    
+    if res.success:
+        # 2. Результат
+        st.subheader("Результат")
+        st.success(f"X1 = {opt_x:.4f}, X2 = {opt_y:.4f}")
+        st.info(f"Z* = {opt_res:.4f}")
+
+        # 3. Анализ (Sezgirlik tahlili)
+        st.subheader(t_analysis)
+        shadow_prices = res.get('ineqlin', {}).get('marginals', np.zeros(len(A_ub))) if A_ub else []
+        analysis_data = []
+        for i, c in enumerate(st.session_state.constraints):
+            val_at_opt = c['a'] * opt_x + c['b'] * opt_y
+            slack = abs(c['c'] - val_at_opt)
+            s_price = abs(shadow_prices[i]) if slack < 1e-5 and i < len(shadow_prices) else 0
+            analysis_data.append({
+                "№": f"L{i+1}", 
+                "Уравнение": f"{c['a']}x1 + {c['b']}x2 {c['op']} {c['c']}", 
+                "Остаток (Slack)": round(slack, 4), 
+                "Статус": "Активно" if slack < 1e-5 else "Запас", 
+                "Shadow Price": round(s_price, 4)
+            })
+        st.table(pd.DataFrame(analysis_data))
+        
+        # Tarixga saqlash
+        st.session_state.history.insert(0, {
+            'time': datetime.datetime.now().strftime("%H:%M:%S"),
+            'c1': c_main1, 'c2': c_main2,
+            'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints],
+            'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type
+        })
+
+    # 4. История и PDF
+    st.markdown("---")
+    st.subheader(t_hist)
+    if st.session_state.history:
+        st.download_button(t_pdf, data=create_pdf(st.session_state.history), file_name="report.pdf", mime="application/pdf")
+        for h in st.session_state.history:
+            with st.expander(f"🕒 {h['time']} | Z* = {h['z']:.2f}"):
+                st.write(f"**Точка:** X1={h['x']:.2f}, X2={h['y']:.2f}")
+                st.write(f"**Функция:** {h['c1']}x1 + ({h['c2']})x2 -> {h['type']}")
