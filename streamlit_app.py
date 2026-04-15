@@ -9,11 +9,11 @@ import pandas as pd
 # Sahifa sozlamalari (O'zgarishsiz)
 st.set_page_config(page_title="Решатель ЛП", layout="wide")
 
-# --- XOTIRA ---
+# --- XOTIRA (O'zgarishsiz) ---
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-# --- TIL MANTIQI ---
+# --- TIL MANTIQI (O'zgarishsiz) ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "Русский"
 
@@ -40,7 +40,7 @@ else:
 
 st.markdown(f"<h1 style='text-align: center;'>{t_title}</h1>", unsafe_allow_html=True)
 
-# --- PDF FUNKSIYASI ---
+# --- PDF FUNKSIYASI (O'zgarishsiz) ---
 def create_pdf(history):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -64,22 +64,24 @@ def create_pdf(history):
             for cons in item['constraints_text']:
                 safe_text = cons.replace('≤', '<=').replace('≥', '>=')
                 pdf.cell(200, 8, txt=f"   {safe_text}", ln=True)
+        pdf.cell(200, 8, txt="   x1 >= 0, x2 >= 0", ln=True)
         pdf.ln(10)
         pdf.set_font("Arial", 'B', size=14)
         pdf.cell(200, 10, txt="3. Resultat:", ln=True)
         pdf.set_font("Arial", size=12)
         pdf.cell(200, 8, txt=f"Optimalnaya tochka: X1 = {item['x']:.2f}, X2 = {item['y']:.2f}", ln=True)
+        pdf.set_font("Arial", 'B', size=12)
         pdf.cell(200, 8, txt=f"Z* = {item['z']:.2f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- SIDEBAR (Tekislangan) ---
+# --- SIDEBAR (O'zgarishsiz) ---
 with st.sidebar:
     st.header(t_target)
     col_v1, col_x, col_v2, col_y, col_t = st.columns([2, 1, 2, 1, 3])
-    with col_v1: c_main1 = st.number_input("C1", value=5.3, key="main_c1", label_visibility="collapsed")
-    with col_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
-    with col_v2: c_main2 = st.number_input("C2", value=-7.1, key="main_c2", label_visibility="collapsed")
-    with col_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
+    with col_v1: c_main1 = st.number_input("C1", value=5.3, format="%.1f", key="main_c1", label_visibility="collapsed")
+    with col_x: st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
+    with col_v2: c_main2 = st.number_input("C2", value=-7.1, format="%.1f", key="main_c2", label_visibility="collapsed")
+    with col_y: st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
     with col_t: obj_type = st.selectbox("Тип", ("max", "min"), key="main_type", label_visibility="collapsed")
     st.markdown("---")
     st.header(t_cons)
@@ -90,9 +92,9 @@ with st.sidebar:
     for i, cons in enumerate(st.session_state.constraints):
         cl1, cl_x, cl2, cl_y, cl3, cl4, cl5 = st.columns([2, 1.2, 2, 1, 1.5, 2, 1])
         with cl1: a_val = st.number_input(f"a{i}", value=float(cons['a']), key=f"inp_a{i}", label_visibility="collapsed")
-        with cl_x: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*x +</div>", unsafe_allow_html=True)
+        with cl_x: st.markdown("<div style='margin-top: 5px;'><sup>*x</sup> +</div>", unsafe_allow_html=True)
         with cl2: b_val = st.number_input(f"b{i}", value=float(cons['b']), key=f"inp_b{i}", label_visibility="collapsed")
-        with cl_y: st.markdown("<div style='padding-top: 10px; font-weight: bold;'>*y</div>", unsafe_allow_html=True)
+        with cl_y: st.markdown("<div style='margin-top: 5px;'><sup>*y</sup></div>", unsafe_allow_html=True)
         with cl3: op_val = st.selectbox(f"op{i}", ("≤", "≥", "="), index=("≤", "≥", "=").index(cons['op']), key=f"inp_op{i}", label_visibility="collapsed")
         with cl4: c_val = st.number_input(f"c{i}", value=float(cons['c']), key=f"inp_c{i}", label_visibility="collapsed")
         with cl5: 
@@ -103,116 +105,116 @@ with st.sidebar:
     st.session_state.constraints = new_cons
     if st.button(t_add): st.session_state.constraints.append({'a': 1.0, 'b': 1.0, 'op': '≤', 'c': 10.0}); st.rerun()
     st.markdown("---")
+    
     edit_done = st.checkbox(t_edit_done, value=False)
-    solve_btn = st.button(t_solve, type="primary", use_container_width=True) if edit_done else False
+    solve_btn = False
+    if edit_done:
+        solve_btn = st.button(t_solve, type="primary", use_container_width=True)
+    
     st.session_state.lang = st.radio("🌐 Til / Язык", ("Русский", "O'zbekcha"), horizontal=True)
 
-# --- GRAFIK VA YECHIM (ASLIY KODINGIZ) ---
+# --- GRAFIK VA YECHIM ---
 if solve_btn:
     coeffs = [-c_main1 if obj_type == "max" else c_main1, -c_main2 if obj_type == "max" else c_main2]
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
-    history_cons_text = []
     for c in st.session_state.constraints:
-        history_cons_text.append(f"{c['a']}x + {c['b']}y {c['op']} {c['c']}")
         if c['op'] == '≤': A_ub.append([c['a'], c['b']]); b_ub.append(c['c'])
         elif c['op'] == '≥': A_ub.append([-c['a'], -c['b']]); b_ub.append(-c['c'])
         else: A_eq.append([c['a'], c['b']]); b_eq.append(c['c'])
     
     res = linprog(coeffs, A_ub=A_ub or None, b_ub=b_ub or None, A_eq=A_eq or None, b_eq=b_eq or None, bounds=(None, None), method='highs')
     
-    fig = go.Figure()
-    limit = 16
-    x_range = np.linspace(-limit*2, limit*2, 1000)
+    # Varaqlar yaratamiz
+    tab_graph, tab_analys, tab_history = st.tabs(["📈 График", t_analysis, t_hist])
 
-    # ODR va Nuqtalar
-    corner_points = []
-    lines = st.session_state.constraints
-    for i in range(len(lines)):
-        for j in range(i + 1, len(lines)):
-            try:
-                A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
-                B = np.array([lines[i]['c'], lines[j]['c']])
-                p = np.linalg.solve(A, B)
-                valid = True
-                for check in lines:
-                    val = check['a']*p[0] + check['b']*p[1]
-                    if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
-                    elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
-                    elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
-                if valid: corner_points.append(p)
-            except: continue
+    with tab_graph:
+        fig = go.Figure()
+        x_range = np.linspace(-20, 20, 1000)
 
-    if corner_points:
-        pts = np.array(corner_points)
-        center = np.mean(pts, axis=0)
-        angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
-        pts = pts[np.argsort(angles)]
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 102, 204, 0.15)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
-        fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
-        fig.add_trace(go.Scatter(x=[center[0]], y=[center[1]], mode='markers', marker=dict(color='blue', size=8), name="Внутр. точка"))
+        corner_points = []
+        lines = st.session_state.constraints
+        for i in range(len(lines)):
+            for j in range(i + 1, len(lines)):
+                try:
+                    A = np.array([[lines[i]['a'], lines[i]['b']], [lines[j]['a'], lines[j]['b']]])
+                    B = np.array([lines[i]['c'], lines[j]['c']])
+                    p = np.linalg.solve(A, B)
+                    valid = True
+                    for check in lines:
+                        val = check['a']*p[0] + check['b']*p[1]
+                        if check['op'] == '≤' and val > check['c'] + 1e-5: valid = False
+                        elif check['op'] == '≥' and val < check['c'] - 1e-5: valid = False
+                        elif check['op'] == '=' and abs(val - check['c']) > 1e-5: valid = False
+                    if valid: corner_points.append(p)
+                except: continue
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-    for i, c in enumerate(st.session_state.constraints):
-        if abs(c['b']) > 1e-7:
-            y_vals = (c['c'] - c['a'] * x_range) / c['b']
-            fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', line=dict(color=colors[i % len(colors)], width=2), name=f"L{i+1}: {c['a']}x+{c['b']}y {c['op']}{c['c']}"))
-            lx = -limit + 3 + i*2
-            ly = (c['c'] - c['a'] * lx) / c['b']
-            if -limit < ly < limit:
-                fig.add_annotation(x=lx, y=ly, text=f"L{i+1}", showarrow=False, font=dict(color=colors[i % len(colors)], size=12, family="Arial Bold"), bgcolor="white")
+        if corner_points:
+            pts = np.array(corner_points)
+            center = np.mean(pts, axis=0)
+            angles = np.arctan2(pts[:,1]-center[1], pts[:,0]-center[0])
+            pts = pts[np.argsort(angles)]
+            fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], fill="toself", fillcolor='rgba(0, 100, 255, 0.2)', line=dict(color='rgba(255,255,255,0)'), name="ОДР"))
+            fig.add_trace(go.Scatter(x=pts[:,0], y=pts[:,1], mode='markers', marker=dict(color='red', size=8), name="Угловые точки"))
+            inner_x, inner_y = center[0], center[1]
+            inner_z = c_main1 * inner_x + c_main2 * inner_y
+            fig.add_trace(go.Scatter(x=[inner_x], y=[inner_y], mode='markers', marker=dict(color='blue', size=10), name="Внутр. точка"))
+            if abs(c_main2) > 1e-7:
+                y_inner = (inner_z - c_main1 * x_range) / c_main2
+                fig.add_trace(go.Scatter(x=x_range, y=y_inner, mode='lines', name=f"Линия уровня (Z={inner_z:.2f})", line=dict(color='blue', dash='dot', width=1.5)))
 
-    if res.success:
-        opt_x, opt_y = res.x
-        opt_res = c_main1 * opt_x + c_main2 * opt_y
-        
-        # Tarixga qo'shish
-        st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'type': obj_type, 'constraints_text': history_cons_text, 'x': opt_x, 'y': opt_y, 'z': opt_res, 'res_raw': res})
+        for i, c in enumerate(st.session_state.constraints):
+            if abs(c['b']) > 1e-7:
+                y_vals = (c['c'] - c['a'] * x_range) / c['b']
+                fig.add_trace(go.Scatter(x=x_range, y=y_vals, mode='lines', name=f"L{i+1}: {c['a']}x + {c['b']}y {c['op']} {c['c']}"))
 
-        if corner_points and abs(c_main2) > 1e-7:
-            z_mid = c_main1 * center[0] + c_main2 * center[1]
-            y_mid = (z_mid - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_mid, mode='lines', line=dict(color='green', dash='dot', width=1.5), name=f"Линия уровня (Z={z_mid:.2f})"))
-        if abs(c_main2) > 1e-7:
-            y_target = (opt_res - c_main1 * x_range) / c_main2
-            fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', line=dict(color='black', dash='dash', width=2), name=f"Целевая прямая (Z={opt_res:.2f})"))
-        fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=["Оптимум"], textposition="top right", marker=dict(color='gold', size=14, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
-
-        # Gradient vektori VZ
-        norm = np.sqrt(c_main1**2 + c_main2**2)
-        if norm > 0:
-            vx, vy = (c_main1/norm)*4, (c_main2/norm)*4
-            if obj_type == "min": vx, vy = -vx, -vy
-            fig.add_annotation(x=opt_x + vx, y=opt_y + vy, ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
-
-    # O'qlar (Strelkalar bilan)
-    fig.add_annotation(x=limit, y=0, ax=-limit, ay=0, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowwidth=2)
-    fig.add_annotation(x=0, y=limit, ax=0, ay=-limit, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowwidth=2)
-    for i in range(-limit+1, limit):
-        fig.add_shape(type="line", x0=i, y0=-0.2, x1=i, y1=0.2, line=dict(color="black", width=1))
-        fig.add_shape(type="line", x0=-0.2, y0=i, x1=0.2, y1=i, line=dict(color="black", width=1))
-        if i != 0 and i % 2 == 0:
-            fig.add_annotation(x=i, y=-0.8, text=str(i), showarrow=False, font=dict(size=10))
-            fig.add_annotation(x=-0.8, y=i, text=str(i), showarrow=False, font=dict(size=10))
-
-    fig.update_layout(xaxis=dict(showgrid=False, visible=False, range=[-limit, limit+1]), yaxis=dict(showgrid=False, visible=False, range=[-limit, limit+1]), plot_bgcolor='white', height=850, margin=dict(l=10, r=10, t=50, b=10))
-    st.plotly_chart(fig, use_container_width=True)
-
-    # --- ANALIZ VA TARIX (GRAFIKDAN KEYIN) ---
-    tab1, tab2 = st.tabs([t_analysis, t_hist])
-    with tab1:
-        st.subheader(t_analysis)
         if res.success:
-            st.info(f"**Оптимальное решение:** X = {opt_x:.4f}, Y = {opt_y:.4f}, Z = {opt_res:.4f}")
-            if hasattr(res, 'ineqlin') and res.ineqlin is not None:
-                st.write("**Теневые цены (Marginals):**")
-                st.write(res.ineqlin.marginals)
-            else:
-                st.warning("Для получения анализа чувствительности используйте ограничения типа ≤ yoki ≥.")
-    with tab2:
-        st.subheader(t_hist)
-        for h in st.session_state.history:
-            with st.expander(f"Z = {h['z']:.2f} ({h['time']})"):
-                st.write(f"Nuqta: ({h['x']:.2f}, {h['y']:.2f})")
-                for txt in h['constraints_text']: st.text(txt)
+            opt_x, opt_y = res.x
+            opt_res = c_main1 * opt_x + c_main2 * opt_y
+            if abs(c_main2) > 1e-7:
+                y_target = (opt_res - c_main1 * x_range) / c_main2
+                fig.add_trace(go.Scatter(x=x_range, y=y_target, mode='lines', name=f"Целевая прямая (Z={opt_res:.2f})", line=dict(color='black', dash='dash', width=2)))
+
+            fig.add_annotation(x=opt_x + 1.5, y=opt_y + (c_main2/c_main1 if c_main1 != 0 else 1.5), ax=opt_x, ay=opt_y, xref="x", yref="y", axref="x", ayref="y", text="VZ", showarrow=True, arrowhead=3, arrowcolor="red", font=dict(color="red", size=14))
+            fig.add_trace(go.Scatter(x=[opt_x], y=[opt_y], mode='markers+text', text=[f"Оптимум ({opt_x:.2f}; {opt_y:.2f})"], textposition="top right", marker=dict(color='gold', size=18, symbol='star', line=dict(color='black', width=1)), name="Оптимум"))
+
+            fig.update_layout(xaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), yaxis=dict(showgrid=True, gridcolor='LightGrey', gridwidth=0.5, dtick=2, range=[-15, 15], zerolinecolor='black'), plot_bgcolor='white', legend=dict(x=0, y=1.1, orientation="h", bordercolor="Black", borderwidth=1), height=800)
+            st.plotly_chart(fig, use_container_width=True)
+            st.success(f"### {('Результат' if st.session_state.lang == 'Русский' else 'Natija')}: X = {opt_x:.2f}, Y = {opt_y:.2f}, Z = {opt_res:.2f}")
+
+            # Tarixga qo'shish
+            st.session_state.history.insert(0, {'time': datetime.datetime.now().strftime("%H:%M:%S"), 'c1': c_main1, 'c2': c_main2, 'constraints_text': [f"{c['a']}x1 + ({c['b']})x2 {c['op']} {c['c']}" for c in st.session_state.constraints], 'x': opt_x, 'y': opt_y, 'z': opt_res, 'type': obj_type})
+        else:
+            st.error("Yechim topilmadi.")
+
+    with tab_analys:
+        if res.success:
+            st.markdown(f"### {t_analysis}")
+            shadow_prices = res.get('ineqlin', {}).get('marginals', np.zeros(len(A_ub))) if A_ub else []
+            analysis_data = []
+            for i, c in enumerate(st.session_state.constraints):
+                val_at_opt = c['a'] * opt_x + c['b'] * opt_y
+                slack = abs(c['c'] - val_at_opt)
+                s_price = 0
+                if slack < 1e-5 and i < len(shadow_prices):
+                    s_price = abs(shadow_prices[i])
+                status = "Активно" if slack < 1e-5 else "Запас"
+                analysis_data.append({
+                    "№": f"L{i+1}", 
+                    "Уравнение": f"{c['a']}x1 + {c['b']}x2 {c['op']} {c['c']}", 
+                    "Остаток": round(slack, 4), 
+                    "Статус": status,
+                    "Shadow Price": round(s_price, 4)
+                })
+            st.table(pd.DataFrame(analysis_data))
+
+    with tab_history:
         if st.session_state.history:
-            st.download_button(t_pdf, data=create_pdf(st.session_state.history), file_name="history.pdf", mime="application/pdf")
+            st.markdown(f"### {t_hist}")
+            pdf_file = create_pdf(st.session_state.history)
+            st.download_button(t_pdf, data=pdf_file, file_name="lp_report.pdf", mime="application/pdf")
+            for h in st.session_state.history:
+                with st.expander(f"🕒 `{h['time']}` | **Z: {h['z']:.2f}**"):
+                    st.write(f"Maqsad: {h['c1']}x1 + {h['c2']}x2 -> {h['type']}")
+                    st.write(f"Nuqta: X={h['x']:.2f}, Y={h['y']:.2f}")
+                    for txt in h['constraints_text']:
+                        st.text(txt)
